@@ -1,4 +1,4 @@
 **/*.o
-gravsim
+machinelearn
 **/*.swp
 imgui.ini
