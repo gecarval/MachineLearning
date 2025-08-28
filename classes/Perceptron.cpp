@@ -18,7 +18,35 @@ Perceptron::Perceptron(const size_t weightLen)
 	  weightLen(weightLen)
 {
 	static const float decimal = DECIMAL;
-	for (size_t i = 0; i < weightLen; i++)
+	for (size_t i = 0; i < this->weightLen; i++)
+	{
+		this->weight[i].x = GetRandomValue(decimal, decimal) / decimal;
+		this->weight[i].y = GetRandomValue(decimal, decimal) / decimal;
+	}
+	this->biasWeight = GetRandomValue(decimal, decimal) / decimal;
+}
+
+Perceptron::Perceptron(const size_t weightLen, const float newBias)
+	: bias(newBias), learnRate(LEARNRATE), weight(new Vector2[weightLen]),
+	  weightLen(1)
+{
+	static const float decimal = DECIMAL;
+	for (size_t i = 0; i < this->weightLen; i++)
+	{
+		this->weight[i].x = GetRandomValue(decimal, decimal) / decimal;
+		this->weight[i].y = GetRandomValue(decimal, decimal) / decimal;
+	}
+	this->biasWeight = GetRandomValue(decimal, decimal) / decimal;
+}
+
+Perceptron::Perceptron(const size_t weightLen,
+					   const float newBias,
+					   const float newLearnRate)
+	: bias(newBias), learnRate(newLearnRate), weight(new Vector2[weightLen]),
+	  weightLen(1)
+{
+	static const float decimal = DECIMAL;
+	for (size_t i = 0; i < this->weightLen; i++)
 	{
 		this->weight[i].x = GetRandomValue(decimal, decimal) / decimal;
 		this->weight[i].y = GetRandomValue(decimal, decimal) / decimal;

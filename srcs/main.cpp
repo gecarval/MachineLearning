@@ -20,7 +20,7 @@ static const float zoom = 1.0f;
 static const Color backGroundColor = RAYWHITE;
 
 // Simulation Settings
-static const Line initialLine = {500.0f, 0.5f, -500.0f};
+static const Line initialLine = {500.0f, 0.5f, -200.0f};
 static const unsigned int initialPointAmount = 5000;
 static const unsigned int pointRadius = 3;
 static const Color pointColor = BLACK;
