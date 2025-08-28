@@ -34,10 +34,9 @@ void engineInput(Machine &machine)
 		const size_t size = machine.points.size();
 		for (size_t i = 0; i < size; i++)
 		{
-			const size_t len = 1;
-			const Vector2 *inputArray = &machine.points[i];
+			const Vector2 &inputArray = machine.points[i];
 			const int desired = machine.desired[i];
-			machine.brain.train(inputArray, len, desired);
+			machine.brain.train(inputArray, i, desired);
 		}
 	}
 	machine.camera.zoom += zoomDelta;

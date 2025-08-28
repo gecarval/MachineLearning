@@ -21,9 +21,10 @@ class Perceptron
 {
 private:
 	float bias;
+	float biasWeight;
 	float learnRate;
-	Vector2 *weightArray;
-	size_t weightArraySize;
+	Vector2 *weight;
+	size_t weightLen;
 
 protected:
 	virtual float activate(const float sum) const;
@@ -35,10 +36,20 @@ public:
 	explicit Perceptron(const Perceptron &other);
 	Perceptron &operator=(const Perceptron &other);
 	float feedFoward(const Vector2 *inputArray, const size_t len) const;
-	void train(const Vector2 *inputArray,
-			   const size_t len,
-			   const float desired) const;
-	size_t getWeightArraySize(void) const;
+	void train(const Vector2 &inputArray,
+			   const size_t index,
+			   const float desired);
+	float getWeightedX0(const float x0, const size_t weightIndex) const;
+	float getWeightedX1(const float x1, const size_t weightIndex) const;
+	void setWeightAt(const Vector2 &newWeight, const size_t index);
+	const Vector2 &getWeightAt(const size_t index) const;
+	void setBias(const float newBiasWeight);
+	float getBias(void) const;
+	void setBiasWeight(const float newBias);
+	float getBiasWeight(void) const;
+	void setLearnRate(const float newLearnRate);
+	float getLearnRate(void) const;
+	size_t getWeightLen(void) const;
 };
 
 #endif
