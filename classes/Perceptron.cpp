@@ -2,8 +2,7 @@
 #include <cstddef>
 
 Perceptron::Perceptron()
-	: bias(BIAS), learnRate(LEARNRATE), weight(new Vector2[1]),
-	  weightLen(1)
+	: bias(BIAS), learnRate(LEARNRATE), weight(new Vector2[1]), weightLen(1)
 {
 	static const float decimal = DECIMAL;
 	for (size_t i = 0; i < this->weightLen; i++)
@@ -15,8 +14,8 @@ Perceptron::Perceptron()
 }
 
 Perceptron::Perceptron(const size_t weightLen)
-	: bias(BIAS), learnRate(LEARNRATE),
-	  weight(new Vector2[weightLen]), weightLen(weightLen)
+	: bias(BIAS), learnRate(LEARNRATE), weight(new Vector2[weightLen]),
+	  weightLen(weightLen)
 {
 	static const float decimal = DECIMAL;
 	for (size_t i = 0; i < weightLen; i++)
@@ -76,16 +75,15 @@ float Perceptron::activate(const float sum) const
 }
 
 void Perceptron::train(const Vector2 &input,
-						const size_t index,
-						const float desired)
+					   const size_t index,
+					   const float desired)
 {
 	const size_t len = 1;
 	const float guess = this->feedFoward(&input, len);
 	const float error = desired - guess;
-	this->setWeightAt(this->getWeightAt(index) + (input * this->learnRate * error),
-			index);
-	const float median = desired;
-	this->biasWeight = this->biasWeight + this->learnRate * median * error;
+	this->setWeightAt(
+		this->getWeightAt(index) + (input * this->learnRate * error), index);
+	this->biasWeight = this->biasWeight + this->learnRate * this->bias * error;
 }
 
 float Perceptron::getWeightedX0(const float x0, const size_t weightIndex) const

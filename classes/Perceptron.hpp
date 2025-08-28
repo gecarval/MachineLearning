@@ -36,9 +36,8 @@ public:
 	explicit Perceptron(const Perceptron &other);
 	Perceptron &operator=(const Perceptron &other);
 	float feedFoward(const Vector2 *inputArray, const size_t len) const;
-	void train(const Vector2 &inputArray,
-			   const size_t index,
-			   const float desired);
+	void
+	train(const Vector2 &inputArray, const size_t index, const float desired);
 	float getWeightedX0(const float x0, const size_t weightIndex) const;
 	float getWeightedX1(const float x1, const size_t weightIndex) const;
 	void setWeightAt(const Vector2 &newWeight, const size_t index);
