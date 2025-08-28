@@ -6,7 +6,7 @@
 #include <cstddef>
 
 #ifndef BIAS
-#define BIAS 1.0f
+#define BIAS 1000.0f
 #endif
 
 #ifndef DECIMAL
@@ -32,7 +32,11 @@ protected:
 public:
 	virtual ~Perceptron();
 	explicit Perceptron();
-	explicit Perceptron(const size_t weightArrayLen);
+	explicit Perceptron(const size_t weightLen);
+	explicit Perceptron(const size_t weightLen, const float newBias);
+	explicit Perceptron(const size_t weightLen,
+						const float newBias,
+						const float newLearnRate);
 	explicit Perceptron(const Perceptron &other);
 	Perceptron &operator=(const Perceptron &other);
 	float feedFoward(const Vector2 *inputArray, const size_t len) const;
