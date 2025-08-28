@@ -39,8 +39,8 @@ void initParticles(Machine &machine)
 		const float randXPos = GetRandomValue(-windowWidth, windowWidth);
 		const float randYPos = GetRandomValue(-windowHeight, windowHeight);
 		machine.points[i] = (Vector2) {randXPos, randYPos};
-		const float lineY = calcDeclive(initialLine.m, initialLine.x, initialLine.d);
-		machine.desired[i] = machine.points[i].y > lineY ? -1 : 1;
+		const float lineY = calcDeclive(initialLine.m, randXPos, initialLine.d);
+		machine.desired[i] = machine.points[i].y > lineY ? 1 : -1;
 	}
 }
 
