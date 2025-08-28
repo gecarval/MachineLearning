@@ -10,12 +10,19 @@
 #include <string>
 #include <vector>
 
+struct Line {
+	float x;
+	float m;
+	float d;
+};
+
 struct Machine
 {
 	Camera2D camera;
 	std::vector<Vector2> points;
 	std::vector<float> desired;
 	Perceptron brain;
+	Line line;
 };
 
 void renderImGui(Machine &machine);
