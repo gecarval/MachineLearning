@@ -2,7 +2,7 @@
 
 // Window Settings
 static const char windowTitle[] = "Machine Learning";
-static const unsigned int windowWidth = 1200;
+static const unsigned int windowWidth = 1900;
 static const unsigned int windowHeight = 800;
 static const unsigned int frameLimit = 120;
 static const Vector2 drawFpsPos = (Vector2) {10.0f, 10.0f};
@@ -115,6 +115,11 @@ void endEngine(Machine &machine)
 
 int main(void)
 {
+	{
+		DMatrix m(5,5);
+		m[0][0] = 5;
+		std::cout << m << std::endl;
+	}
 	std::time_t now = std::time(0);
 	std::tm *local_time = std::localtime(&now);
 	SetRandomSeed(local_time->tm_sec);

@@ -16,6 +16,7 @@ SRC =	./includes/imgui/imgui_demo.cpp		\
 		./includes/imgui/imgui_draw.cpp		\
 		./includes/imgui/imgui_widgets.cpp	\
 		./classes/Perceptron.cpp			\
+		./classes/DMatrix.cpp				\
 		./srcs/input.cpp					\
 		./srcs/menu.cpp						\
 		./srcs/main.cpp
@@ -31,7 +32,8 @@ INCS = -I./classes/							\
 	   ./includes/raylib/libraylib.a -lGL -lm -lpthread -ldl -lrt -lX11
 
 INCLUDES = ./includes/Machine.hpp		\
-		   ./classes/Perceptron.hpp
+		   ./classes/Perceptron.hpp		\
+		   ./classes/DMatrix.hpp
 
 OBJS = $(SRC:.cpp=.o)
 RM = rm -f

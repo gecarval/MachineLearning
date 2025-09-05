@@ -2,6 +2,7 @@
 #define MACHINE_HPP
 
 // INCLUDES
+#include "../classes/DMatrix.hpp"
 #include "../classes/Perceptron.hpp"
 #include "./imgui/imgui.h"
 #include "imgui/rlImGui.h"
