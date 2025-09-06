@@ -16,11 +16,22 @@ public:
 	explicit DMatrix();
 	explicit DMatrix(const size_t rows, const size_t cols);
 	explicit DMatrix(const DMatrix &other);
+
 	DMatrix &operator=(const DMatrix &other);
+	DMatrix operator+(const DMatrix &other);
+	DMatrix operator*(const DMatrix &other);
+	DMatrix &operator+=(const DMatrix &other);
+	DMatrix &operator*=(const DMatrix &other);
+
+	DMatrix operator+(const float n);
+	DMatrix operator*(const float n);
 	DMatrix &operator+=(const float n);
 	DMatrix &operator*=(const float n);
+
 	float *operator[](const size_t index);
 	const float *operator[](const size_t index) const;
+
+	void randomize(void);
 	void setValue(const size_t row, const size_t col, const float val);
 	float getValue(const size_t row, const size_t col) const;
 	size_t getRowLength(void) const;

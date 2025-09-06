@@ -116,12 +116,13 @@ void endEngine(Machine &machine)
 int main(void)
 {
 	{
-		DMatrix m(5, 5);
-		m[0][0] = 5;
-		m[1][2] = 7;
-		std::cout << m << std::endl;
-		m *= 2;
-		std::cout << m << std::endl;
+		DMatrix a(2, 3);
+		DMatrix b(3, 2);
+		a.randomize();
+		b.randomize();
+		std::cout << a << std::endl;
+		std::cout << b << std::endl;
+		std::cout << a * b << std::endl;
 	}
 	std::time_t now = std::time(0);
 	std::tm *local_time = std::localtime(&now);

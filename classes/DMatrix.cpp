@@ -1,4 +1,5 @@
 #include "DMatrix.hpp"
+#include <cstddef>
 
 DMatrix::DMatrix() : rows(2), cols(2), matrix(NULL)
 {
@@ -74,24 +75,103 @@ const float *DMatrix::operator[](const size_t index) const
 	return (this->matrix[accessY]);
 }
 
+DMatrix &DMatrix::operator+=(const DMatrix &other)
+{
+	if (this->cols != other.cols || this->rows != other.rows)
+		return (*this);
+	for (size_t i = 0; i < this->rows; i++)
+		for (size_t j = 0; j < this->cols; j++)
+			this->matrix[i][j] += other.matrix[i][j];
+	return (*this);
+}
+
+DMatrix &DMatrix::operator*=(const DMatrix &other)
+{
+	if (this->cols != other.rows)
+		return (*this);
+	DMatrix m(this->rows, other.cols);
+	for (size_t i = 0; i < m.rows; i++)
+	{
+		for (size_t j = 0; j < m.cols; j++)
+		{
+			float sum = 0;
+			for (size_t k = 0; k < this->cols; k++)
+				sum += this->matrix[i][k] * other.matrix[k][j];
+			m.matrix[i][j] = sum;
+		}
+	}
+	*this = m;
+	return (*this);
+}
+
+DMatrix DMatrix::operator+(const DMatrix &other)
+{
+	if (this->cols != other.cols || this->rows != other.rows)
+		return (DMatrix(*this));
+	DMatrix m(*this);
+	for (size_t i = 0; i < m.rows; i++)
+		for (size_t j = 0; j < m.cols; j++)
+			m.matrix[i][j] += other.matrix[i][j];
+	return (DMatrix(m));
+}
+
+DMatrix DMatrix::operator*(const DMatrix &other)
+{
+	if (this->cols != other.rows)
+		return (DMatrix(this->rows, other.cols));
+	DMatrix m(this->rows, other.cols);
+	for (size_t i = 0; i < m.rows; i++)
+	{
+		for (size_t j = 0; j < m.cols; j++)
+		{
+			float sum = 0;
+			for (size_t k = 0; k < this->cols; k++)
+				sum += this->matrix[i][k] * other.matrix[k][j];
+			m.matrix[i][j] = sum;
+		}
+	}
+	return (DMatrix(m));
+}
+
 DMatrix &DMatrix::operator+=(const float n)
 {
 	for (size_t i = 0; i < this->rows; i++)
-	{
 		for (size_t j = 0; j < this->cols; j++)
 			this->matrix[i][j] += n;
-	}
 	return (*this);
 }
 
 DMatrix &DMatrix::operator*=(const float n)
 {
 	for (size_t i = 0; i < this->rows; i++)
-	{
 		for (size_t j = 0; j < this->cols; j++)
 			this->matrix[i][j] *= n;
-	}
 	return (*this);
+}
+
+DMatrix DMatrix::operator+(const float n)
+{
+	DMatrix m(*this);
+	for (size_t i = 0; i < m.rows; i++)
+		for (size_t j = 0; j < m.cols; j++)
+			m.matrix[i][j] += n;
+	return (DMatrix(m));
+}
+
+DMatrix DMatrix::operator*(const float n)
+{
+	DMatrix m(*this);
+	for (size_t i = 0; i < m.rows; i++)
+		for (size_t j = 0; j < m.cols; j++)
+			m.matrix[i][j] *= n;
+	return (DMatrix(m));
+}
+
+void DMatrix::randomize(void)
+{
+	for (size_t i = 0; i < this->rows; i++)
+		for (size_t j = 0; j < this->cols; j++)
+			this->matrix[i][j] = std::rand() % 10;
 }
 
 void DMatrix::setValue(const size_t row, const size_t col, const float val)
@@ -123,14 +203,14 @@ std::ostream &operator<<(std::ostream &out, const DMatrix &m)
 	out << std::endl;
 	for (size_t i = 0; i < m.getRowLength(); i++)
 	{
-		out << "Y[" << i << "] -> ";
+		out << "Y" << i << " [";
 		for (size_t j = 0; j < m.getColLength(); j++)
 		{
 			out << m[i][j];
 			if (j + 1 < m.getColLength())
 				out << ", ";
 		}
-		out << std::endl;
+		out << "]" << std::endl;
 	}
 	return (out);
 }
