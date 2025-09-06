@@ -183,6 +183,13 @@ void DMatrix::randomize(void)
 			this->matrix[i][j] = std::rand() % 10;
 }
 
+void DMatrix::map(float (*func)(float))
+{
+	for (size_t i = 0; i < this->rows; i++)
+		for (size_t j = 0; j < this->cols; j++)
+			this->matrix[i][j] = func(this->matrix[i][j]);
+}
+
 void DMatrix::setValue(const size_t row, const size_t col, const float val)
 {
 	const size_t accessY = row < this->rows ? row : this->rows;
