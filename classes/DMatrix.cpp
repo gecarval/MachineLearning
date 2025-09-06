@@ -167,6 +167,15 @@ DMatrix DMatrix::operator*(const float n)
 	return (DMatrix(m));
 }
 
+DMatrix DMatrix::transpose(void)
+{
+	DMatrix m(this->cols, this->rows);
+	for (size_t i = 0; i < m.rows; i++)
+		for (size_t j = 0; j < m.cols; j++)
+			m.matrix[i][j] = this->matrix[j][i];
+	return (DMatrix(m));
+}
+
 void DMatrix::randomize(void)
 {
 	for (size_t i = 0; i < this->rows; i++)

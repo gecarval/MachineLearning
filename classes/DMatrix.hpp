@@ -32,6 +32,7 @@ public:
 	const float *operator[](const size_t index) const;
 
 	void randomize(void);
+	DMatrix transpose(void);
 	void setValue(const size_t row, const size_t col, const float val);
 	float getValue(const size_t row, const size_t col) const;
 	size_t getRowLength(void) const;
