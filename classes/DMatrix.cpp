@@ -55,27 +55,27 @@ DMatrix &DMatrix::operator=(const DMatrix &other) {
 
 float *DMatrix::operator[](const size_t index)
 {
-	const size_t accessY = index < this->rows ? index : index < 0 ? 0 : index;
+	const size_t accessY = index < this->rows ? index : this->rows;
 	return (this->matrix[accessY]);
 }
 
 const float *DMatrix::operator[](const size_t index) const
 {
-	const size_t accessY = index < this->rows ? index : index < 0 ? 0 : index;
+	const size_t accessY = index < this->rows ? index : this->rows;
 	return (this->matrix[accessY]);
 }
 
 void DMatrix::setValue(const size_t row, const size_t col, const float val)
 {
-	const size_t accessY = row < this->rows ? row : row < 0 ? 0 : row;
-	const size_t accessX = col < this->cols ? col : col < 0 ? 0 : col;
+	const size_t accessY = row < this->rows ? row : this->rows;
+	const size_t accessX = col < this->cols ? col : this->cols;
 	this->matrix[accessY][accessX] = val;
 }
 
 float DMatrix::getValue(const size_t row, const size_t col) const
 {
-	const size_t accessY = row < this->rows ? row : row < 0 ? 0 : row;
-	const size_t accessX = col < this->cols ? col : col < 0 ? 0 : col;
+	const size_t accessY = row < this->rows ? row : this->rows;
+	const size_t accessX = col < this->cols ? col : this->cols;
 	return (this->matrix[accessY][accessX]);
 }
 
