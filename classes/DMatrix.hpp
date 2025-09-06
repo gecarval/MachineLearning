@@ -4,18 +4,21 @@
 #include <cstddef>
 #include <ostream>
 
-class DMatrix {
+class DMatrix
+{
 protected:
-	size_t	rows;
-	size_t	cols;
-	float	**matrix;
+	size_t rows;
+	size_t cols;
+	float **matrix;
 
 public:
-    virtual ~DMatrix();
-    explicit DMatrix();
-    explicit DMatrix(const size_t rows, const size_t cols);
-    explicit DMatrix(const DMatrix &other);
-    DMatrix &operator=(const DMatrix &other);
+	virtual ~DMatrix();
+	explicit DMatrix();
+	explicit DMatrix(const size_t rows, const size_t cols);
+	explicit DMatrix(const DMatrix &other);
+	DMatrix &operator=(const DMatrix &other);
+	DMatrix &operator+=(const float n);
+	DMatrix &operator*=(const float n);
 	float *operator[](const size_t index);
 	const float *operator[](const size_t index) const;
 	void setValue(const size_t row, const size_t col, const float val);

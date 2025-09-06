@@ -116,8 +116,11 @@ void endEngine(Machine &machine)
 int main(void)
 {
 	{
-		DMatrix m(5,5);
+		DMatrix m(5, 5);
 		m[0][0] = 5;
+		m[1][2] = 7;
+		std::cout << m << std::endl;
+		m *= 2;
 		std::cout << m << std::endl;
 	}
 	std::time_t now = std::time(0);
