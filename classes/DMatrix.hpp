@@ -14,11 +14,10 @@ protected:
 
 public:
 	virtual ~DMatrix();
-	explicit DMatrix();
-	explicit DMatrix(const std::vector<float> &vectorArray);
-	explicit DMatrix(const float *array, const size_t len);
-	explicit DMatrix(const size_t rows, const size_t cols);
-	explicit DMatrix(const DMatrix &other);
+	DMatrix();
+	DMatrix(const std::vector<float> &vectorArray);
+	DMatrix(const size_t rows, const size_t cols);
+	DMatrix(const DMatrix &other);
 
 	DMatrix &operator=(const DMatrix &other);
 	DMatrix operator+(const DMatrix &other);
@@ -34,8 +33,9 @@ public:
 	float *operator[](const size_t index);
 	const float *operator[](const size_t index) const;
 
+	std::vector<float> toVector(void) const;
 	DMatrix transpose(void);
-	float totalSum(void);
+	float totalSum(void) const;
 	void randomize(void);
 	void map(float (*func)(float));
 	void setValue(const size_t row, const size_t col, const float val);

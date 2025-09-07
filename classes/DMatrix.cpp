@@ -1,5 +1,4 @@
 #include "DMatrix.hpp"
-#include <cstddef>
 
 DMatrix::DMatrix() : rows(2), cols(2), matrix(NULL)
 {
@@ -32,17 +31,6 @@ DMatrix::DMatrix(const std::vector<float> &vectorArray)
 	{
 		this->matrix[i] = new float[this->cols];
 		this->matrix[i][0] = vectorArray[i];
-	}
-}
-
-DMatrix::DMatrix(const float *input, const size_t len)
-	: rows(len), cols(1), matrix(NULL)
-{
-	this->matrix = new float *[this->rows];
-	for (size_t i = 0; i < this->rows; i++)
-	{
-		this->matrix[i] = new float[this->cols];
-		this->matrix[i][0] = input[i];
 	}
 }
 
@@ -134,7 +122,7 @@ DMatrix DMatrix::operator+(const DMatrix &other)
 	for (size_t i = 0; i < m.rows; i++)
 		for (size_t j = 0; j < m.cols; j++)
 			m.matrix[i][j] += other.matrix[i][j];
-	return (DMatrix(m));
+	return (m);
 }
 
 DMatrix DMatrix::operator*(const DMatrix &other)
@@ -152,7 +140,7 @@ DMatrix DMatrix::operator*(const DMatrix &other)
 			m.matrix[i][j] = sum;
 		}
 	}
-	return (DMatrix(m));
+	return (m);
 }
 
 DMatrix &DMatrix::operator+=(const float n)
@@ -177,7 +165,7 @@ DMatrix DMatrix::operator+(const float n)
 	for (size_t i = 0; i < m.rows; i++)
 		for (size_t j = 0; j < m.cols; j++)
 			m.matrix[i][j] += n;
-	return (DMatrix(m));
+	return (m);
 }
 
 DMatrix DMatrix::operator*(const float n)
@@ -186,7 +174,16 @@ DMatrix DMatrix::operator*(const float n)
 	for (size_t i = 0; i < m.rows; i++)
 		for (size_t j = 0; j < m.cols; j++)
 			m.matrix[i][j] *= n;
-	return (DMatrix(m));
+	return (m);
+}
+
+std::vector<float> DMatrix::toVector(void) const
+{
+	std::vector<float> v;
+	for (size_t i = 0; i < this->rows; i++)
+		for (size_t j = 0; j < this->cols; j++)
+			v.push_back(this->matrix[i][j]);
+	return (v);
 }
 
 DMatrix DMatrix::transpose(void)
@@ -195,10 +192,10 @@ DMatrix DMatrix::transpose(void)
 	for (size_t i = 0; i < m.rows; i++)
 		for (size_t j = 0; j < m.cols; j++)
 			m.matrix[i][j] = this->matrix[j][i];
-	return (DMatrix(m));
+	return (m);
 }
 
-float DMatrix::totalSum(void)
+float DMatrix::totalSum(void) const
 {
 	float sum = 0;
 	for (size_t i = 0; i < this->rows; i++)
