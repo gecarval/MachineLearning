@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <ostream>
+#include <vector>
 
 class DMatrix
 {
@@ -14,6 +15,8 @@ protected:
 public:
 	virtual ~DMatrix();
 	explicit DMatrix();
+	explicit DMatrix(const std::vector<float> &vectorArray);
+	explicit DMatrix(const float *array, const size_t len);
 	explicit DMatrix(const size_t rows, const size_t cols);
 	explicit DMatrix(const DMatrix &other);
 

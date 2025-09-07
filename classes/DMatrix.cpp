@@ -24,6 +24,28 @@ DMatrix::DMatrix(const size_t rows, const size_t cols)
 	}
 }
 
+DMatrix::DMatrix(const std::vector<float> &vectorArray)
+	: rows(vectorArray.size()), cols(1), matrix(NULL)
+{
+	this->matrix = new float *[this->rows];
+	for (size_t i = 0; i < this->rows; i++)
+	{
+		this->matrix[i] = new float[this->cols];
+		this->matrix[i][0] = vectorArray[i];
+	}
+}
+
+DMatrix::DMatrix(const float *input, const size_t len)
+	: rows(len), cols(1), matrix(NULL)
+{
+	this->matrix = new float *[this->rows];
+	for (size_t i = 0; i < this->rows; i++)
+	{
+		this->matrix[i] = new float[this->cols];
+		this->matrix[i][0] = input[i];
+	}
+}
+
 DMatrix::~DMatrix()
 {
 	for (size_t i = 0; i < this->rows; i++)
@@ -180,7 +202,7 @@ void DMatrix::randomize(void)
 {
 	for (size_t i = 0; i < this->rows; i++)
 		for (size_t j = 0; j < this->cols; j++)
-			this->matrix[i][j] = std::rand() % 10;
+			this->matrix[i][j] = (std::rand() % 100) / 100.0;
 }
 
 void DMatrix::map(float (*func)(float))
