@@ -2,7 +2,7 @@
 #define MACHINE_HPP
 
 // INCLUDES
-#include "../classes/DMatrix.hpp"
+#include "../classes/NeuralNetwork.hpp"
 #include "../classes/Perceptron.hpp"
 #include "./imgui/imgui.h"
 #include "imgui/rlImGui.h"
@@ -11,7 +11,8 @@
 #include <string>
 #include <vector>
 
-struct Line {
+struct Line
+{
 	float x;
 	float m;
 	float d;

@@ -1,4 +1,5 @@
 #include "../includes/Machine.hpp"
+#include <cstdlib>
 
 // Window Settings
 static const char windowTitle[] = "Machine Learning";
@@ -116,16 +117,17 @@ void endEngine(Machine &machine)
 int main(void)
 {
 	{
-		DMatrix a(2, 3);
-		DMatrix b(3, 2);
-		a.randomize();
-		b.randomize();
-		std::cout << a << std::endl;
-		std::cout << b << std::endl;
-		std::cout << a * b << std::endl;
+		NeuralNetwork brain(3, 6, 3);
+		std::vector<float> v;
+		v.push_back(0.3);
+		v.push_back(0.1);
+		v.push_back(0.6);
+		std::vector<float> r = brain.feedFoward(v);
+		std::cout << r << std::endl;
 	}
 	std::time_t now = std::time(0);
 	std::tm *local_time = std::localtime(&now);
+	std::srand(local_time->tm_sec);
 	SetRandomSeed(local_time->tm_sec);
 	Machine machine;
 	initEngine(machine);

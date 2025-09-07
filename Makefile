@@ -30,6 +30,7 @@ IMGUIINC =	./includes/imgui/imgui.h					\
 			./includes/imgui/extras/FA6FreeSolidFontData.h
 
 SRC =	./classes/Perceptron.cpp			\
+		./classes/NeuralNetwork.cpp			\
 		./classes/DMatrix.cpp				\
 		./srcs/input.cpp					\
 		./srcs/menu.cpp						\
@@ -46,6 +47,7 @@ INCS =	-I./classes/							\
 		./includes/raylib/libraylib.a -lGL -lm -lpthread -ldl -lrt -lX11
 
 INCLUDES = ./includes/Machine.hpp		\
+		   ./classes/NeuralNetwork.hpp	\
 		   ./classes/Perceptron.hpp		\
 		   ./classes/DMatrix.hpp
 
