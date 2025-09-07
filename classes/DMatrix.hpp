@@ -34,9 +34,10 @@ public:
 	float *operator[](const size_t index);
 	const float *operator[](const size_t index) const;
 
+	DMatrix transpose(void);
+	float totalSum(void);
 	void randomize(void);
 	void map(float (*func)(float));
-	DMatrix transpose(void);
 	void setValue(const size_t row, const size_t col, const float val);
 	float getValue(const size_t row, const size_t col) const;
 	size_t getRowLength(void) const;

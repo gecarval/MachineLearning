@@ -198,6 +198,15 @@ DMatrix DMatrix::transpose(void)
 	return (DMatrix(m));
 }
 
+float DMatrix::totalSum(void)
+{
+	float sum = 0;
+	for (size_t i = 0; i < this->rows; i++)
+		for (size_t j = 0; j < this->cols; j++)
+			sum += this->matrix[i][j];
+	return (sum);
+}
+
 void DMatrix::randomize(void)
 {
 	for (size_t i = 0; i < this->rows; i++)
