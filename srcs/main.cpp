@@ -118,7 +118,7 @@ int main(void) {
 		d.push_back(0);
 		d.push_back(1);
 		d.push_back(0);
-		// brain.train(v, d);
+		brain.train(v, d);
 	}
 	return (0);
 	std::time_t now = std::time(0);
