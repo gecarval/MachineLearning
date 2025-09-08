@@ -2,17 +2,17 @@
 #define DMATRIX_HPP
 
 #include <cstddef>
+#include <iostream>
 #include <ostream>
 #include <vector>
 
-class DMatrix
-{
-protected:
-	size_t rows;
-	size_t cols;
+class DMatrix {
+  protected:
+	size_t	rows;
+	size_t	cols;
 	float **matrix;
 
-public:
+  public:
 	virtual ~DMatrix();
 	DMatrix();
 	DMatrix(const std::vector<float> &vectorArray);
@@ -20,26 +20,30 @@ public:
 	DMatrix(const DMatrix &other);
 
 	DMatrix &operator=(const DMatrix &other);
-	DMatrix operator+(const DMatrix &other);
-	DMatrix operator*(const DMatrix &other);
+	DMatrix	 operator+(const DMatrix &other) const;
+	DMatrix	 operator-(const DMatrix &other) const;
+	DMatrix	 operator*(const DMatrix &other) const;
 	DMatrix &operator+=(const DMatrix &other);
+	DMatrix &operator-=(const DMatrix &other);
 	DMatrix &operator*=(const DMatrix &other);
 
-	DMatrix operator+(const float n);
-	DMatrix operator*(const float n);
+	DMatrix	 operator+(const float n) const;
+	DMatrix	 operator-(const float n) const;
+	DMatrix	 operator*(const float n) const;
 	DMatrix &operator+=(const float n);
+	DMatrix &operator-=(const float n);
 	DMatrix &operator*=(const float n);
 
-	float *operator[](const size_t index);
+	float		*operator[](const size_t index);
 	const float *operator[](const size_t index) const;
 
 	std::vector<float> toVector(void) const;
-	DMatrix transpose(void);
-	float totalSum(void) const;
-	void randomize(void);
-	void map(float (*func)(float));
-	void setValue(const size_t row, const size_t col, const float val);
-	float getValue(const size_t row, const size_t col) const;
+	DMatrix			   transpose(void);
+	float			   totalSum(void) const;
+	void			   randomize(void);
+	void			   map(float (*func)(float));
+	void   setValue(const size_t row, const size_t col, const float val);
+	float  getValue(const size_t row, const size_t col) const;
 	size_t getRowLength(void) const;
 	size_t getColLength(void) const;
 };
