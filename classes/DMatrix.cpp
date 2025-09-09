@@ -190,10 +190,25 @@ float DMatrix::totalSum(void) const {
 }
 
 void DMatrix::randomize(void) {
+	if (this->cols == 0) return;
+	float std_dev = std::sqrt(2.0 / static_cast<float>(this->cols));
+	std::random_device				rd;
+	std::mt19937					generator(rd());
+	std::normal_distribution<float> distribution(0.0, std_dev);
 	for (size_t i = 0; i < this->rows; i++)
 		for (size_t j = 0; j < this->cols; j++)
-			this->matrix[i][j] =
-				((std::rand() % 100) / 100.0) * ((std::rand() % 2) ? -1 : 1);
+			this->matrix[i][j] = distribution(generator);
+}
+
+void DMatrix::randomize(const size_t fan_in) {
+	if (fan_in == 0) return;
+	float			   std_dev = std::sqrt(2.0 / static_cast<float>(fan_in));
+	std::random_device rd;
+	std::mt19937	   generator(rd());
+	std::normal_distribution<float> distribution(0.0, std_dev);
+	for (size_t i = 0; i < this->rows; ++i)
+		for (size_t j = 0; j < this->cols; ++j)
+			this->matrix[i][j] = distribution(generator);
 }
 
 void DMatrix::map(float (*func)(float)) {

@@ -1,9 +1,11 @@
 #ifndef DMATRIX_HPP
 #define DMATRIX_HPP
 
+#include <cmath>
 #include <cstddef>
 #include <iostream>
 #include <ostream>
+#include <random>
 #include <vector>
 
 class DMatrix {
@@ -41,6 +43,7 @@ class DMatrix {
 	DMatrix			   transpose(void);
 	float			   totalSum(void) const;
 	void			   randomize(void);
+	void			   randomize(const size_t fanIn);
 	void			   map(float (*func)(float));
 	void   setValue(const size_t row, const size_t col, const float val);
 	float  getValue(const size_t row, const size_t col) const;
