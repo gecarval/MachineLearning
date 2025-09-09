@@ -130,7 +130,7 @@ void NeuralNetwork::train(const DMatrix &inputArray, const DMatrix &desired) {
 	const DMatrix  output(this->feedFoward(inputArray));
 	const DMatrix &target = desired;
 	DMatrix		   outputError((target - output));
-	for (size_t i = this->hiddenLayerLen; i >= 0; i--) {
+	for (size_t i = this->hiddenLayerLen; i != 0; i--) {
 		outputError = this->weight[i].transpose() * outputError;
 	}
 }
@@ -140,7 +140,7 @@ void NeuralNetwork::train(const std::vector<float> &inputArray,
 	const DMatrix output(this->feedFoward(inputArray));
 	const DMatrix target(desired);
 	DMatrix		  outputError((target - output));
-	for (size_t i = this->hiddenLayerLen; i >= 0; i--) {
+	for (size_t i = this->hiddenLayerLen; i != 0; i--) {
 		outputError = this->weight[i].transpose() * outputError;
 	}
 }
