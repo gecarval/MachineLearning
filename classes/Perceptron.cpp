@@ -1,5 +1,4 @@
 #include "Perceptron.hpp"
-#include <cstddef>
 
 Perceptron::Perceptron()
 	: bias(BIAS), learnRate(LEARNRATE), weight(new Vector2[1]), weightLen(1) {

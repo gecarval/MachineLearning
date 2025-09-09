@@ -1,5 +1,4 @@
 #include "../includes/Machine.hpp"
-#include <cstdlib>
 
 // Window Settings
 static const char		  windowTitle[] = "Machine Learning";
@@ -107,20 +106,60 @@ void endEngine(Machine &machine) {
 
 int main(void) {
 	{
-		NeuralNetwork	   brain(3, 6, 3);
-		std::vector<float> v;
-		v.push_back(0.3);
-		v.push_back(0.1);
-		v.push_back(0.6);
-		std::vector<float> r = brain.feedFoward(v);
-		std::cout << r << std::endl;
-		std::vector<float> d;
-		d.push_back(0);
-		d.push_back(1);
-		d.push_back(0);
-		brain.train(v, d);
+		NeuralNetwork brain(3, 9, 3, 3);
+		brain.setLearnRate(0.001f);
+		std::vector<float> d1;
+		d1.push_back(0);
+		d1.push_back(1);
+		d1.push_back(0);
+		std::vector<float> d2;
+		d2.push_back(1);
+		d2.push_back(0);
+		d2.push_back(1);
+		std::vector<float> v1;
+		v1.push_back(0.6);
+		v1.push_back(0.2);
+		v1.push_back(0.6);
+		std::vector<float> v2;
+		v2.push_back(0.6);
+		v2.push_back(0.2);
+		v2.push_back(0.1);
+		std::vector<float> r;
+		static const int   iter = 50000;
+		std::cout << "v1:" << v1 << std::endl;
+		std::cout << "d1:" << d1 << std::endl;
+		std::cout << "v2:" << v2 << std::endl;
+		std::cout << "d2:" << d2 << std::endl;
+		for (int i = 0; i < iter; i++) {
+			if (i % 2 == 0) {
+				r = brain.feedFoward(v1);
+				if (r == d1) continue;
+				if (i == 0) {
+					std::cout << "---------PHASE1A---------" << std::endl;
+					std::cout << "rv1:" << r;
+					std::cout << "d1:" << d1 << std::endl;
+				} else if (i == iter - 2) {
+					std::cout << "---------PHASE2A---------" << std::endl;
+					std::cout << "rv1:" << r;
+					std::cout << "d1:" << d1 << std::endl;
+				}
+				brain.train(v1, d1);
+			} else {
+				r = brain.feedFoward(v2);
+				if (i == 1) {
+					std::cout << "---------PHASE1B---------" << std::endl;
+					std::cout << "rv2:" << r;
+					std::cout << "d2:" << d2 << std::endl;
+				} else if (i == iter - 1) {
+					std::cout << "---------PHASE2B---------" << std::endl;
+					std::cout << "rv2:" << r;
+					std::cout << "d2:" << d2 << std::endl;
+				}
+				if (r == d2) continue;
+				brain.train(v2, d2);
+			}
+		}
 	}
-	return (0);
 	std::time_t now = std::time(0);
 	std::tm	   *local_time = std::localtime(&now);
 	std::srand(local_time->tm_sec);
