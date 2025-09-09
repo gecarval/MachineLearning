@@ -1,12 +1,34 @@
 #include "NeuralNetwork.hpp"
+#include "DMatrix.hpp"
+#include <cmath>
+#include <cstdlib>
+
+static float clampGradient(const float x) {
+	static const float max = NeuralNetwork::CLAMP;
+	float			   r = x;
+	if (std::abs(r) > max) r = r > 0 ? max : -max;
+	return (r);
+}
+
+static float errorTolerance(const float x) {
+	return (x);
+	static const float tol = 1.0f / NeuralNetwork::TOLERANCE;
+	if (std::abs(x) < tol) return (0);
+	return (x);
+}
 
 static float sigmoid(const float x) {
-	return (1.0 / (1.0 + std::exp(-x)));
+	return (1.0f / (1.0f + std::exp(-x)));
 }
 
 static float relu(const float x) {
-	if (x < 0) return (0);
+	static const float a = 1.0f / NeuralNetwork::ALPHA;
+	if (x < 0) return (x * a);
 	return (x);
+}
+
+static float gradientCalc(const float y) {
+	return (y + 1.0f - y);
 }
 
 NeuralNetwork::NeuralNetwork()
@@ -19,10 +41,8 @@ NeuralNetwork::NeuralNetwork()
 		DMatrix(this->numberOfOutputNodes, this->numberOfHiddenNodes);
 	this->bias[0] = DMatrix(this->numberOfHiddenNodes, 1);
 	this->bias[1] = DMatrix(this->numberOfOutputNodes, 1);
-	for (size_t i = 0; i < this->hiddenLayerLen + 1; i++) {
+	for (size_t i = 0; i < this->hiddenLayerLen + 1; i++)
 		this->weight[i].randomize();
-		this->bias[i].randomize();
-	}
 }
 
 NeuralNetwork::NeuralNetwork(const size_t numberOfInputsNodes,
@@ -38,10 +58,8 @@ NeuralNetwork::NeuralNetwork(const size_t numberOfInputsNodes,
 		DMatrix(this->numberOfOutputNodes, this->numberOfHiddenNodes);
 	this->bias[0] = DMatrix(this->numberOfHiddenNodes, 1);
 	this->bias[1] = DMatrix(this->numberOfOutputNodes, 1);
-	for (size_t i = 0; i < this->hiddenLayerLen + 1; i++) {
+	for (size_t i = 0; i < this->hiddenLayerLen + 1; i++)
 		this->weight[i].randomize();
-		this->bias[i].randomize();
-	}
 }
 
 NeuralNetwork::NeuralNetwork(const size_t numberOfInputsNodes,
@@ -56,19 +74,21 @@ NeuralNetwork::NeuralNetwork(const size_t numberOfInputsNodes,
 	  bias(new DMatrix[hiddenLayerLength + 1]) {
 	this->weight[0] =
 		DMatrix(this->numberOfHiddenNodes, this->numberOfInputsNodes);
+	this->weight[0].randomize(this->numberOfInputsNodes);
 	this->bias[0] = DMatrix(this->numberOfHiddenNodes, 1);
+	this->bias[0].randomize(this->numberOfInputsNodes);
 	for (size_t i = 1; i < this->hiddenLayerLen; i++) {
 		this->weight[i] =
 			DMatrix(this->numberOfHiddenNodes, this->numberOfHiddenNodes);
+		this->weight[i].randomize(this->numberOfHiddenNodes);
 		this->bias[i] = DMatrix(this->numberOfHiddenNodes, 1);
+		this->bias[i].randomize(this->numberOfHiddenNodes);
 	}
 	this->weight[this->hiddenLayerLen] =
 		DMatrix(this->numberOfOutputNodes, this->numberOfHiddenNodes);
+	this->weight[this->hiddenLayerLen].randomize(this->numberOfOutputNodes);
 	this->bias[this->hiddenLayerLen] = DMatrix(this->numberOfOutputNodes, 1);
-	for (size_t i = 0; i < this->hiddenLayerLen + 1; i++) {
-		this->weight[i].randomize();
-		this->bias[i].randomize();
-	}
+	this->bias[this->hiddenLayerLen].randomize(this->numberOfOutputNodes);
 }
 
 NeuralNetwork::NeuralNetwork(const NeuralNetwork &other) {
@@ -102,14 +122,7 @@ NeuralNetwork &NeuralNetwork::operator=(const NeuralNetwork &other) {
 std::vector<float>
 NeuralNetwork::feedFoward(const std::vector<float> &input) const {
 	DMatrix res(input);
-	for (size_t i = 0; i < this->hiddenLayerLen + 1; i++) {
-		res = this->weight[i] * res;
-		res += this->bias[i];
-		if (i == this->hiddenLayerLen)
-			res.map(sigmoid);
-		else
-			res.map(relu);
-	}
+	res = this->feedFoward(res);
 	return (res.toVector());
 }
 
@@ -127,22 +140,37 @@ DMatrix NeuralNetwork::feedFoward(const DMatrix &input) const {
 }
 
 void NeuralNetwork::train(const DMatrix &inputArray, const DMatrix &desired) {
-	const DMatrix  output(this->feedFoward(inputArray));
-	const DMatrix &target = desired;
-	DMatrix		   outputError((target - output));
-	for (long i = this->hiddenLayerLen; i >= 0; i--) {
-		outputError = this->weight[i].transpose() * outputError;
+	DMatrix *outputs = new DMatrix[this->hiddenLayerLen + 1];
+	DMatrix	 res(inputArray);
+	for (size_t i = 0; i < this->hiddenLayerLen + 1; i++) {
+		res = this->weight[i] * res;
+		res += this->bias[i];
+		if (i == this->hiddenLayerLen) {
+			res.map(sigmoid);
+			outputs[i] = res;
+		} else {
+			res.map(relu);
+			outputs[i] = res;
+			outputs[i].map(sigmoid);
+		}
 	}
-}
-
-void NeuralNetwork::train(const std::vector<float> &inputArray,
-						  const std::vector<float> &desired) {
-	const DMatrix output(this->feedFoward(inputArray));
-	const DMatrix target(desired);
-	DMatrix		  outputError((target - output));
+	DMatrix layerError(desired - outputs[this->hiddenLayerLen]);
 	for (long i = this->hiddenLayerLen; i >= 0; i--) {
-		outputError = this->weight[i].transpose() * outputError;
+		if ((size_t)i != this->hiddenLayerLen)
+			layerError = this->weight[i + 1].transpose() * layerError;
+		layerError.map(errorTolerance);
+		DMatrix gradient(outputs[i]);
+		gradient.map(gradientCalc);
+		gradient.multiply(layerError);
+		gradient *= this->learnRate;
+		gradient.map(clampGradient);
+		const DMatrix &transposed =
+			i == 0 ? inputArray.transpose() : outputs[i].transpose();
+		const DMatrix weightDelta(gradient * transposed);
+		this->weight[i] += weightDelta;
+		this->bias[i] += weightDelta;
 	}
+	delete[] outputs;
 }
 
 void NeuralNetwork::setLearnRate(const float newLearnRate) {

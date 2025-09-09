@@ -7,7 +7,7 @@
 #include <vector>
 
 #ifndef NNLEARNRATE
-#define NNLEARNRATE 0.0000001f
+#define NNLEARNRATE 0.0001f
 #endif
 
 class NeuralNetwork {
@@ -21,6 +21,9 @@ class NeuralNetwork {
 	DMatrix *bias;
 
   public:
+	static const int CLAMP = 10000;
+	static const int TOLERANCE = 1000;
+	static const int ALPHA = 1000;
 	virtual ~NeuralNetwork();
 	explicit NeuralNetwork();
 	explicit NeuralNetwork(const size_t numberOfInputsNodes,
@@ -35,8 +38,6 @@ class NeuralNetwork {
 	DMatrix			   feedFoward(const DMatrix &input) const;
 	std::vector<float> feedFoward(const std::vector<float> &input) const;
 	void			   train(const DMatrix &inputArray, const DMatrix &desired);
-	void			   train(const std::vector<float> &inputArray,
-							 const std::vector<float> &desired);
 	void			   setLearnRate(const float newLearnRate);
 	float			   getLearnRate(void) const;
 	size_t			   getNumberOfInputsNodes(void) const;
