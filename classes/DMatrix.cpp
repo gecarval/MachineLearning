@@ -175,7 +175,7 @@ std::vector<float> DMatrix::toVector(void) const {
 	return (v);
 }
 
-DMatrix DMatrix::transpose(void) {
+DMatrix DMatrix::transpose(void) const {
 	DMatrix m(this->cols, this->rows);
 	for (size_t i = 0; i < m.rows; i++)
 		for (size_t j = 0; j < m.cols; j++) m.matrix[i][j] = this->matrix[j][i];

@@ -40,7 +40,7 @@ class DMatrix {
 	const float *operator[](const size_t index) const;
 
 	std::vector<float> toVector(void) const;
-	DMatrix			   transpose(void);
+	DMatrix			   transpose(void) const;
 	float			   totalSum(void) const;
 	void			   randomize(void);
 	void			   randomize(const size_t fanIn);
