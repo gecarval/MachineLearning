@@ -1,7 +1,4 @@
 #include "NeuralNetwork.hpp"
-#include "DMatrix.hpp"
-#include <cmath>
-#include <cstdlib>
 
 static float clampGradient(const float x) {
 	static const float max = NeuralNetwork::CLAMP;
