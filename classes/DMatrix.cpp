@@ -175,6 +175,13 @@ std::vector<float> DMatrix::toVector(void) const {
 	return (v);
 }
 
+void DMatrix::multiply(const DMatrix &other) {
+	if (this->cols != other.cols || this->rows != other.rows) return;
+	for (size_t i = 0; i < this->rows; i++)
+		for (size_t j = 0; j < this->cols; j++)
+			this->matrix[i][j] *= other.matrix[i][j];
+}
+
 DMatrix DMatrix::transpose(void) const {
 	DMatrix m(this->cols, this->rows);
 	for (size_t i = 0; i < m.rows; i++)
