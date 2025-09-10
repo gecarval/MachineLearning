@@ -2,8 +2,8 @@
 
 // Window Settings
 static const char		  windowTitle[] = "Machine Learning";
-static const unsigned int windowWidth = 1900;
-static const unsigned int windowHeight = 1000;
+static const unsigned int windowWidth = 800;
+static const unsigned int windowHeight = 600;
 static const unsigned int frameLimit = 120;
 static const Vector2	  drawFpsPos = (Vector2){10.0f, 10.0f};
 
@@ -104,67 +104,69 @@ void endEngine(Machine &machine) {
 	CloseWindow();
 }
 
-int main(void) {
-	{
-		NeuralNetwork brain(3, 9, 3, 3);
-		brain.setLearnRate(0.001f);
-		std::vector<float> d1;
-		d1.push_back(0);
-		d1.push_back(1);
-		d1.push_back(0);
-		std::vector<float> d2;
-		d2.push_back(1);
-		d2.push_back(0);
-		d2.push_back(1);
-		std::vector<float> v1;
-		v1.push_back(0.6);
-		v1.push_back(0.2);
-		v1.push_back(0.6);
-		std::vector<float> v2;
-		v2.push_back(0.6);
-		v2.push_back(0.2);
-		v2.push_back(0.1);
-		std::vector<float> r;
-		static const int   iter = 50000;
-		std::cout << "v1:" << v1 << std::endl;
-		std::cout << "d1:" << d1 << std::endl;
-		std::cout << "v2:" << v2 << std::endl;
-		std::cout << "d2:" << d2 << std::endl;
-		for (int i = 0; i < iter; i++) {
-			if (i % 2 == 0) {
-				r = brain.feedFoward(v1);
-				if (r == d1) continue;
-				if (i == 0) {
-					std::cout << "---------PHASE1A---------" << std::endl;
-					std::cout << "rv1:" << r;
-					std::cout << "d1:" << d1 << std::endl;
-				} else if (i == iter - 2) {
-					std::cout << "---------PHASE2A---------" << std::endl;
-					std::cout << "rv1:" << r;
-					std::cout << "d1:" << d1 << std::endl;
-				}
-				brain.train(v1, d1);
-			} else {
-				r = brain.feedFoward(v2);
-				if (i == 1) {
-					std::cout << "---------PHASE1B---------" << std::endl;
-					std::cout << "rv2:" << r;
-					std::cout << "d2:" << d2 << std::endl;
-				} else if (i == iter - 1) {
-					std::cout << "---------PHASE2B---------" << std::endl;
-					std::cout << "rv2:" << r;
-					std::cout << "d2:" << d2 << std::endl;
-				}
-				if (r == d2) continue;
-				brain.train(v2, d2);
+static void testNN(Machine &machine) {
+	machine.NN = NeuralNetwork(3, 9, 3, 3);
+	machine.NN.setLearnRate(0.001f);
+	std::vector<float> d1;
+	d1.push_back(0);
+	d1.push_back(1);
+	d1.push_back(0);
+	std::vector<float> d2;
+	d2.push_back(1);
+	d2.push_back(0);
+	d2.push_back(1);
+	std::vector<float> v1;
+	v1.push_back(0.6);
+	v1.push_back(0.2);
+	v1.push_back(0.6);
+	std::vector<float> v2;
+	v2.push_back(0.6);
+	v2.push_back(0.2);
+	v2.push_back(0.1);
+	std::vector<float> r;
+	static const int   iter = 50000;
+	std::cout << "v1:" << v1 << std::endl;
+	std::cout << "d1:" << d1 << std::endl;
+	std::cout << "v2:" << v2 << std::endl;
+	std::cout << "d2:" << d2 << std::endl;
+	for (int i = 0; i < iter; i++) {
+		if (i % 2 == 0) {
+			r = machine.NN.feedFoward(v1);
+			if (r == d1) continue;
+			if (i == 0) {
+				std::cout << "---------PHASE1A---------" << std::endl;
+				std::cout << "rv1:" << r;
+				std::cout << "d1:" << d1 << std::endl;
+			} else if (i == iter - 2) {
+				std::cout << "---------PHASE2A---------" << std::endl;
+				std::cout << "rv1:" << r;
+				std::cout << "d1:" << d1 << std::endl;
 			}
+			machine.NN.train(v1, d1);
+		} else {
+			r = machine.NN.feedFoward(v2);
+			if (i == 1) {
+				std::cout << "---------PHASE1B---------" << std::endl;
+				std::cout << "rv2:" << r;
+				std::cout << "d2:" << d2 << std::endl;
+			} else if (i == iter - 1) {
+				std::cout << "---------PHASE2B---------" << std::endl;
+				std::cout << "rv2:" << r;
+				std::cout << "d2:" << d2 << std::endl;
+			}
+			if (r == d2) continue;
+			machine.NN.train(v2, d2);
 		}
 	}
+}
+
+int main(void) {
 	std::time_t now = std::time(0);
 	std::tm	   *local_time = std::localtime(&now);
 	std::srand(local_time->tm_sec);
 	SetRandomSeed(local_time->tm_sec);
 	Machine machine;
+	testNN(machine);
 	initEngine(machine);
 	while (!WindowShouldClose()) updateEngine(machine);
 	endEngine(machine);

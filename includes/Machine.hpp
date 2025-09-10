@@ -21,6 +21,7 @@ struct Machine {
 	std::vector<Vector2> points;
 	std::vector<float>	 desired;
 	Perceptron			 brain;
+	NeuralNetwork		 NN;
 	Line				 line;
 };
 
