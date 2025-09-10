@@ -8,7 +8,6 @@ static float clampGradient(const float x) {
 }
 
 static float errorTolerance(const float x) {
-	return (x);
 	static const float tol = 1.0f / NeuralNetwork::TOLERANCE;
 	if (std::abs(x) < tol) return (0);
 	return (x);
@@ -24,8 +23,13 @@ static float relu(const float x) {
 	return (x);
 }
 
-static float gradientCalc(const float y) {
-	return (y + 1.0f - y);
+static float dSigmoid(const float y) {
+	return (y * (1.0f - y));
+}
+
+static float dRelu(const float y) {
+	static const float a = 1.0f / NeuralNetwork::ALPHA;
+	return (y >= 0 ? 1.0f : a);
 }
 
 NeuralNetwork::NeuralNetwork()
@@ -137,8 +141,8 @@ DMatrix NeuralNetwork::feedFoward(const DMatrix &input) const {
 }
 
 void NeuralNetwork::train(const DMatrix &inputArray, const DMatrix &desired) {
-	DMatrix *outputs = new DMatrix[this->hiddenLayerLen + 1];
-	DMatrix	 res(inputArray);
+	std::vector<DMatrix> outputs(this->hiddenLayerLen + 1);
+	DMatrix				 res(inputArray);
 	for (size_t i = 0; i < this->hiddenLayerLen + 1; i++) {
 		res = this->weight[i] * res;
 		res += this->bias[i];
@@ -148,7 +152,6 @@ void NeuralNetwork::train(const DMatrix &inputArray, const DMatrix &desired) {
 		} else {
 			res.map(relu);
 			outputs[i] = res;
-			outputs[i].map(sigmoid);
 		}
 	}
 	DMatrix layerError(desired - outputs[this->hiddenLayerLen]);
@@ -157,7 +160,10 @@ void NeuralNetwork::train(const DMatrix &inputArray, const DMatrix &desired) {
 			layerError = this->weight[i + 1].transpose() * layerError;
 		layerError.map(errorTolerance);
 		DMatrix gradient(outputs[i]);
-		gradient.map(gradientCalc);
+		if ((size_t)i != this->hiddenLayerLen)
+			gradient.map(dRelu);
+		else
+			gradient.map(dSigmoid);
 		gradient.multiply(layerError);
 		gradient *= this->learnRate;
 		gradient.map(clampGradient);
@@ -167,7 +173,6 @@ void NeuralNetwork::train(const DMatrix &inputArray, const DMatrix &desired) {
 		this->weight[i] += weightDelta;
 		this->bias[i] += gradient;
 	}
-	delete[] outputs;
 }
 
 void NeuralNetwork::setLearnRate(const float newLearnRate) {

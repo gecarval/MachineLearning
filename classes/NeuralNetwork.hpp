@@ -21,9 +21,9 @@ class NeuralNetwork {
 	DMatrix *bias;
 
   public:
-	static const int CLAMP = 10000;
-	static const int TOLERANCE = 1000;
-	static const int ALPHA = 1000;
+	static const int CLAMP = 100000;
+	static const int TOLERANCE = 10000;
+	static const int ALPHA = 100;
 	virtual ~NeuralNetwork();
 	explicit NeuralNetwork();
 	explicit NeuralNetwork(const size_t numberOfInputsNodes,
