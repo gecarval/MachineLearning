@@ -16,7 +16,10 @@ struct Line {
 	float d;
 };
 
+enum STATE { MAINMENU, PERCEPTRON, NEURALNETWORK };
+
 struct Machine {
+	int					 state;
 	Camera2D			 camera;
 	std::vector<Vector2> points;
 	std::vector<float>	 desired;

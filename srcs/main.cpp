@@ -29,7 +29,7 @@ float calcDeclive(float m, float x, float d) {
 	return (m * x + d);
 }
 
-void initParticles(Machine &machine) {
+void initPoints(Machine &machine) {
 	machine.points = std::vector<Vector2>(initialPointAmount);
 	machine.desired = std::vector<float>(initialPointAmount);
 	for (size_t i = 0; i < initialPointAmount; i++) {
@@ -42,16 +42,36 @@ void initParticles(Machine &machine) {
 }
 
 void initEngine(Machine &machine) {
+	machine.state = STATE::MAINMENU;
 	machine.line = initialLine;
 	machine.camera = (Camera2D){offset, target, rotation, zoom};
 	InitWindow(windowWidth, windowHeight, windowTitle);
 	SetTargetFPS(frameLimit);
 	rlImGuiSetup(true);
-	initParticles(machine);
+	initPoints(machine);
+}
+
+void renderNeuralNetwork(Machine &machine) {
+	static const char	 title[] = "Work In Progress...";
+	static const char	 subTitle[] = "PRESS ESCAPE to JUMP to the MAIN MENU";
+	static const int	 titleFontSize = windowHeight / 20;
+	static const int	 subTitleFontSize = titleFontSize / 2;
+	static const int	 titlePosOffset = titleFontSize * sizeof(title) / 3;
+	static const Vector2 titlePos =
+		(Vector2){screenMiddle.x - titlePosOffset, 20};
+	static const int subTitlePosOffset =
+		subTitleFontSize * sizeof(subTitle) / 3;
+	static const Vector2 subTitlePos =
+		(Vector2){screenMiddle.x - subTitlePosOffset, screenMiddle.y};
+	ClearBackground(backGroundColor);
+	DrawText(title, titlePos.x, titlePos.y, titleFontSize, DARKGREEN);
+	DrawText(subTitle, subTitlePos.x, subTitlePos.y, subTitleFontSize,
+			 DARKGREEN);
+	machine.state = STATE::MAINMENU;
 }
 
 void DrawAxis(Machine &machine) {
-	static const float thick = 2;
+	static const float thick = 2.5f;
 	static const float x = 2000.0f;
 	const float		   m = machine.line.m;
 	const float		   d = machine.line.d;
@@ -69,9 +89,7 @@ void DrawAxis(Machine &machine) {
 	DrawLineEx({-x, myi}, {x, myf}, thick, ORANGE);
 }
 
-void renderMachine(Machine &machine) {
-	BeginMode2D(machine.camera);
-	ClearBackground(backGroundColor);
+void DrawPoints(Machine &machine) {
 	for (size_t i = 0; i < initialPointAmount; i++) {
 		const int	  desired = machine.desired[i];
 		const Vector2 center = machine.points[i];
@@ -85,17 +103,83 @@ void renderMachine(Machine &machine) {
 		else
 			DrawCircleV(center, pointRadius - 1, RED);
 	}
-	DrawAxis(machine);
-	EndMode2D();
-	DrawFPS(drawFpsPos.x, drawFpsPos.y);
 }
 
-void updateEngine(Machine &machine) {
+void renderPerceptron(Machine &machine) {
+	BeginMode2D(machine.camera);
+	ClearBackground(backGroundColor);
+	DrawPoints(machine);
+	DrawAxis(machine);
+	EndMode2D();
+}
+
+void renderMainMenu(Machine &machine) {
+	static const char	 title[] = "MAIN MENU";
+	static const char	 subTitle[] = "PRESS ENTER or SPACE to START";
+	static const int	 titleFontSize = windowHeight / 20;
+	static const int	 subTitleFontSize = titleFontSize / 2;
+	static const int	 titlePosOffset = titleFontSize * sizeof(title) / 3;
+	static const Vector2 titlePos =
+		(Vector2){screenMiddle.x - titlePosOffset, 20};
+	static const int subTitlePosOffset =
+		subTitleFontSize * sizeof(subTitle) / 3;
+	static const Vector2 subTitlePos =
+		(Vector2){screenMiddle.x - subTitlePosOffset, screenMiddle.y};
+	ClearBackground(backGroundColor);
+	DrawText(title, titlePos.x, titlePos.y, titleFontSize, DARKGREEN);
+	DrawText(subTitle, subTitlePos.x, subTitlePos.y, subTitleFontSize,
+			 DARKGREEN);
+	machine.state = STATE::MAINMENU;
+}
+
+int handleNeuralNetworkState(Machine &machine) {
+	SetExitKey(0);
+	if (IsKeyPressed(KEY_ESCAPE)) return (STATE::MAINMENU);
+	BeginDrawing();
+	renderNeuralNetwork(machine);
+	DrawFPS(drawFpsPos.x, drawFpsPos.y);
+	EndDrawing();
+	return (STATE::NEURALNETWORK);
+}
+
+int handlePerceptronState(Machine &machine) {
+	SetExitKey(0);
+	if (IsKeyPressed(KEY_ESCAPE)) return (STATE::MAINMENU);
 	engineInput(machine);
 	BeginDrawing();
-	renderMachine(machine);
+	renderPerceptron(machine);
 	renderImGui(machine);
+	DrawFPS(drawFpsPos.x, drawFpsPos.y);
 	EndDrawing();
+	return (STATE::PERCEPTRON);
+}
+
+int handleMainMenuState(Machine &machine) {
+	SetExitKey(KEY_ESCAPE);
+	if (IsKeyPressed(KEY_SPACE)) return (STATE::PERCEPTRON);
+	if (IsKeyPressed(KEY_ENTER)) return (STATE::NEURALNETWORK);
+	BeginDrawing();
+	renderMainMenu(machine);
+	DrawFPS(drawFpsPos.x, drawFpsPos.y);
+	EndDrawing();
+	return (STATE::MAINMENU);
+}
+
+void updateState(Machine &machine) {
+	SetExitKey(KEY_ESCAPE);
+	switch (machine.state) {
+		case STATE::MAINMENU:
+			machine.state = handleMainMenuState(machine);
+			break;
+		case STATE::PERCEPTRON:
+			machine.state = handlePerceptronState(machine);
+			break;
+		case STATE::NEURALNETWORK:
+			machine.state = handleNeuralNetworkState(machine);
+			break;
+		default:
+			break;
+	}
 }
 
 void endEngine(Machine &machine) {
@@ -104,71 +188,14 @@ void endEngine(Machine &machine) {
 	CloseWindow();
 }
 
-static void testNN(Machine &machine) {
-	machine.NN = NeuralNetwork(3, 9, 3, 3);
-	machine.NN.setLearnRate(0.001f);
-	std::vector<float> d1;
-	d1.push_back(0);
-	d1.push_back(1);
-	d1.push_back(0);
-	std::vector<float> d2;
-	d2.push_back(1);
-	d2.push_back(0);
-	d2.push_back(1);
-	std::vector<float> v1;
-	v1.push_back(0.6);
-	v1.push_back(0.2);
-	v1.push_back(0.6);
-	std::vector<float> v2;
-	v2.push_back(0.6);
-	v2.push_back(0.2);
-	v2.push_back(0.1);
-	std::vector<float> r;
-	static const int   iter = 50000;
-	std::cout << "v1:" << v1 << std::endl;
-	std::cout << "d1:" << d1 << std::endl;
-	std::cout << "v2:" << v2 << std::endl;
-	std::cout << "d2:" << d2 << std::endl;
-	for (int i = 0; i < iter; i++) {
-		if (i % 2 == 0) {
-			r = machine.NN.feedFoward(v1);
-			if (r == d1) continue;
-			if (i == 0) {
-				std::cout << "---------PHASE1A---------" << std::endl;
-				std::cout << "rv1:" << r;
-				std::cout << "d1:" << d1 << std::endl;
-			} else if (i == iter - 2) {
-				std::cout << "---------PHASE2A---------" << std::endl;
-				std::cout << "rv1:" << r;
-				std::cout << "d1:" << d1 << std::endl;
-			}
-			machine.NN.train(v1, d1);
-		} else {
-			r = machine.NN.feedFoward(v2);
-			if (i == 1) {
-				std::cout << "---------PHASE1B---------" << std::endl;
-				std::cout << "rv2:" << r;
-				std::cout << "d2:" << d2 << std::endl;
-			} else if (i == iter - 1) {
-				std::cout << "---------PHASE2B---------" << std::endl;
-				std::cout << "rv2:" << r;
-				std::cout << "d2:" << d2 << std::endl;
-			}
-			if (r == d2) continue;
-			machine.NN.train(v2, d2);
-		}
-	}
-}
-
 int main(void) {
 	std::time_t now = std::time(0);
 	std::tm	   *local_time = std::localtime(&now);
 	std::srand(local_time->tm_sec);
 	SetRandomSeed(local_time->tm_sec);
 	Machine machine;
-	testNN(machine);
 	initEngine(machine);
-	while (!WindowShouldClose()) updateEngine(machine);
+	while (!WindowShouldClose()) updateState(machine);
 	endEngine(machine);
 	return (0);
 }
