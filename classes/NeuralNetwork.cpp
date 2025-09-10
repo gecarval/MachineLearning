@@ -165,7 +165,7 @@ void NeuralNetwork::train(const DMatrix &inputArray, const DMatrix &desired) {
 			i == 0 ? inputArray.transpose() : outputs[i].transpose();
 		const DMatrix weightDelta(gradient * transposed);
 		this->weight[i] += weightDelta;
-		this->bias[i] += weightDelta;
+		this->bias[i] += gradient;
 	}
 	delete[] outputs;
 }
