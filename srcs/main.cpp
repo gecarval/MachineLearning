@@ -16,6 +16,12 @@ static const Vector2 offset = screenMiddle;
 static const float	 rotation = 0.0f;
 static const float	 zoom = 1.0f;
 
+// Neural Network Settings
+static const unsigned int inputNodes = 2;
+static const unsigned int hiddenNodes = 2;
+static const unsigned int outputNodes = 1;
+static const unsigned int hiddenLayerLength = 1;
+
 // Render Texture Settings
 static const Color backGroundColor = RAYWHITE;
 
@@ -42,32 +48,80 @@ void initPoints(Machine &machine) {
 }
 
 void initEngine(Machine &machine) {
+	machine.NN =
+		NeuralNetwork(inputNodes, hiddenNodes, outputNodes, hiddenLayerLength);
+	machine.NN.setLearnRate(0.001f);
+	machine.camera = (Camera2D){offset, target, rotation, zoom};
 	machine.state = STATE::MAINMENU;
 	machine.line = initialLine;
-	machine.camera = (Camera2D){offset, target, rotation, zoom};
 	InitWindow(windowWidth, windowHeight, windowTitle);
 	SetTargetFPS(frameLimit);
 	rlImGuiSetup(true);
 	initPoints(machine);
 }
 
+static float timer = 0;
+
+void trainMachineNeuralNetwork(Machine &machine) {
+	static const int   samples = 4;
+	static const int   trainLen = 2;
+	static const int   resLen = 1;
+	static const float trainingData[samples][trainLen] = {
+		{0, 0},
+		{1, 1},
+		{1, 0},
+		{0, 1},
+	};
+	static const float trainingResult[samples][resLen] = {
+		{0},
+		{0},
+		{1},
+		{1},
+	};
+	const int		   randomIndex = GetRandomValue(0, samples - 1);
+	std::vector<float> train;
+	std::vector<float> res;
+	for (int i = 0; i < trainLen; i++)
+		train.push_back(trainingData[randomIndex][i]);
+	for (int i = 0; i < resLen; i++)
+		res.push_back(trainingResult[randomIndex][i]);
+	machine.NN.train(train, res);
+	if (timer > 1.0) {
+		for (int i = 0; i < samples; i++) {
+			const std::vector<float> trained = {trainingData[i][0],
+												trainingData[i][1]};
+			const std::vector<float> rest = {trainingResult[i][0]};
+			std::cout << "Model Train Result:" << trained << rest
+					  << machine.NN.feedFoward(trained) << std::endl;
+		}
+		timer = 0;
+	}
+}
+
 void renderNeuralNetwork(Machine &machine) {
-	static const char	 title[] = "Work In Progress...";
-	static const char	 subTitle[] = "PRESS ESCAPE to JUMP to the MAIN MENU";
-	static const int	 titleFontSize = windowHeight / 20;
-	static const int	 subTitleFontSize = titleFontSize / 2;
-	static const int	 titlePosOffset = titleFontSize * sizeof(title) / 3;
-	static const Vector2 titlePos =
-		(Vector2){screenMiddle.x - titlePosOffset, 20};
-	static const int subTitlePosOffset =
-		subTitleFontSize * sizeof(subTitle) / 3;
-	static const Vector2 subTitlePos =
-		(Vector2){screenMiddle.x - subTitlePosOffset, screenMiddle.y};
-	ClearBackground(backGroundColor);
-	DrawText(title, titlePos.x, titlePos.y, titleFontSize, DARKGREEN);
-	DrawText(subTitle, subTitlePos.x, subTitlePos.y, subTitleFontSize,
-			 DARKGREEN);
-	machine.state = STATE::MAINMENU;
+	static const int trainLoop = 1000;
+	for (int i = 0; i < trainLoop; i++) trainMachineNeuralNetwork(machine);
+	static const float grid = 10;
+	static const float cols = windowWidth / grid;
+	static const float rows = windowHeight / grid;
+	for (int i = 0; i < cols; i++) {
+		for (int j = 0; j < rows; j++) {
+			const float				 x0 = i / cols;
+			const float				 x1 = j / rows;
+			const std::vector<float> input = {x0, x1};
+			const float				 x = i * grid;
+			const float				 y = j * grid;
+			const Vector2			 gridPos = (Vector2){x, y};
+			const Vector2			 gridSize = (Vector2){grid, grid};
+			const std::vector<float> output = machine.NN.feedFoward(input);
+			const unsigned char		 alpha = Remap(output[0], 0, 1, 0, 255);
+			const Color gridColor = (Color){alpha, alpha, alpha, 255};
+			DrawRectangleV(gridPos, gridSize, gridColor);
+		}
+	}
+	timer += GetFrameTime();
+}
+
 void DrawPerceptron(Machine &machine) {
 	// Constants for layout
 	static const float	 thickness = 1.5f;
