@@ -41,6 +41,7 @@ class NeuralNetwork {
 	DMatrix			   feedFoward(const DMatrix &input) const;
 	std::vector<float> feedFoward(const std::vector<float> &input) const;
 	void			   train(const DMatrix &inputArray, const DMatrix &desired);
+	void			   clampWeightsAndBiases();
 
 	void		   setLearnRate(const float newLearnRate);
 	float		   getLearnRate(void) const;

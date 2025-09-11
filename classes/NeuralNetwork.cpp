@@ -2,19 +2,22 @@
 
 static float clampGradient(const float x) {
 	static const float max = NeuralNetwork::CLAMP;
-	float			   r = x;
-	if (std::abs(r) > max) r = r > 0 ? max : -max;
+	if (std::isnan(x) || std::isinf(x)) return (max);
+	float r = std::abs(x) < max ? x : x > 0 ? max : -max;
 	return (r);
 }
 
 static float errorTolerance(const float x) {
 	static const float tol = 1.0f / NeuralNetwork::TOLERANCE;
+	if (std::isnan(x) || std::isinf(x)) return (1.0f);
 	if (std::abs(x) < tol) return (0);
 	return (x);
 }
 
 static float sigmoid(const float x) {
-	return (1.0f / (1.0f + std::exp(-x)));
+	const float y = 1.0f / (1.0f + std::exp(-x));
+	if (std::isnan(y) || std::isinf(y)) return (0.5f);
+	return (y);
 }
 
 static float relu(const float x) {
@@ -24,6 +27,7 @@ static float relu(const float x) {
 }
 
 static float dSigmoid(const float y) {
+	if (std::isnan(y) || std::isinf(y)) return (0.5f);
 	return (y * (1.0f - y));
 }
 
@@ -172,6 +176,46 @@ void NeuralNetwork::train(const DMatrix &inputArray, const DMatrix &desired) {
 		const DMatrix weightDelta(gradient * transposed);
 		this->weight[i] += weightDelta;
 		this->bias[i] += gradient;
+	}
+	this->clampWeightsAndBiases();
+}
+
+void NeuralNetwork::clampWeightsAndBiases() {
+	for (size_t i = 0; i < hiddenLayerLen + 1; ++i) {
+		// Determine fan_in and fan_out for the current layer
+		const size_t fan_in =
+			(i == 0) ? numberOfInputsNodes : numberOfHiddenNodes;
+		const size_t fan_out =
+			(i == hiddenLayerLen) ? numberOfOutputNodes : numberOfHiddenNodes;
+		const float weight_clamp = NeuralNetwork::CLAMP;
+		const float bias_clamp = fan_in * fan_out;
+		// Clamp weights
+		const size_t weight_rows = weight[i].getRowLength();
+		const size_t weight_cols = weight[i].getColLength();
+		for (size_t r = 0; r < weight_rows; ++r) {
+			for (size_t c = 0; c < weight_cols; ++c) {
+				float &val = weight[i][r][c];
+				if (std::isnan(val) || std::isinf(val)) {
+					weight[i].randomize(fan_in + fan_out);
+					break;
+				} else if (std::abs(val) > weight_clamp) {
+					val = 1.0f;
+				}
+			}
+		}
+		const size_t bias_rows = bias[i].getRowLength();
+		const size_t bias_cols = bias[i].getColLength();
+		for (size_t r = 0; r < bias_rows; ++r) {
+			for (size_t c = 0; c < bias_cols; ++c) {
+				float &val = bias[i][r][c];
+				if (std::isnan(val) || std::isinf(val)) {
+					bias[i].randomize(fan_in + fan_out);
+					break;
+				} else if (std::abs(val) > bias_clamp) {
+					val = 1.0f;
+				}
+			}
+		}
 	}
 }
 
