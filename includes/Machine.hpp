@@ -59,8 +59,6 @@ static const Color		  pointColor = BLACK;
 
 // Functions
 float calcDeclive(float m, float x, float d);
-void  renderImGui(Machine &machine);
-void  engineInput(Machine &machine);
 int	  handlePerceptronState(Machine &machine);
 int	  handleNeuralNetworkState(Machine &machine);
 int	  handleMainMenuState(Machine &machine);

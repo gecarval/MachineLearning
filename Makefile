@@ -1,6 +1,6 @@
 #
 # Gerson Carvalho
-# Machine Learnig v0.1b
+# Machine Learnig v0.2b
 #
 
 CXX = g++
@@ -35,8 +35,6 @@ SRC =	./classes/DMatrix.cpp					\
 		./srcs/states/mainMenu.cpp				\
 		./srcs/states/perceptronState.cpp		\
 		./srcs/states/neuralNetworkState.cpp	\
-		./srcs/input.cpp						\
-		./srcs/menu.cpp							\
 		./srcs/main.cpp
 
 INCS =	-I./classes/							\
