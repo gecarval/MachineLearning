@@ -2,3 +2,4 @@
 machinelearn
 **/*.swp
 imgui.ini
+NeuralNetwork.json
