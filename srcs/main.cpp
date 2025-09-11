@@ -48,9 +48,14 @@ void initPoints(Machine &machine) {
 }
 
 void initEngine(Machine &machine) {
-	machine.NN =
-		NeuralNetwork(inputNodes, hiddenNodes, outputNodes, hiddenLayerLength);
-	machine.NN.setLearnRate(0.001f);
+	try {
+		machine.NN = NeuralNetwork::deserialize("NeuralNetwork.json");
+	} catch (const std::runtime_error &error) {
+		std::cerr << "[WARNING]" << std::endl;
+		std::cerr << error.what() << std::endl;
+		machine.NN = NeuralNetwork(inputNodes, hiddenNodes, outputNodes,
+								   hiddenLayerLength);
+	}
 	machine.camera = (Camera2D){offset, target, rotation, zoom};
 	machine.state = STATE::MAINMENU;
 	machine.line = initialLine;
@@ -92,9 +97,10 @@ void trainMachineNeuralNetwork(Machine &machine) {
 												trainingData[i][1]};
 			const std::vector<float> rest = {trainingResult[i][0]};
 			std::cout << "Model Train Result:" << trained << rest
-					  << machine.NN.feedFoward(trained) << std::endl;
+					  << machine.NN.feedFoward(trained);
 		}
 		timer = 0;
+		NeuralNetwork::serialize(machine.NN, "NeuralNetwork.json");
 	}
 }
 
