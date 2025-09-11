@@ -49,6 +49,7 @@ INCS =	-I./classes/							\
 INCLUDES = ./includes/Machine.hpp		\
 		   ./classes/NeuralNetwork.hpp	\
 		   ./classes/Perceptron.hpp		\
+		   ./classes/JsonParser.hpp		\
 		   ./classes/DMatrix.hpp
 
 IMGUI = $(IMGUISRC:.cpp=.o)
