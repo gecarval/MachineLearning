@@ -4,6 +4,7 @@
 #include "./DMatrix.hpp"
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <stdexcept>
 
 #ifndef NNLEARNRATE
@@ -41,11 +42,14 @@ class NeuralNetwork {
 	std::vector<float> feedFoward(const std::vector<float> &input) const;
 	void			   train(const DMatrix &inputArray, const DMatrix &desired);
 
-	void   setLearnRate(const float newLearnRate);
-	float  getLearnRate(void) const;
-	size_t getNumberOfInputsNodes(void) const;
-	size_t getNumberOfHiddenNodes(void) const;
-	size_t getNumberOfOutputsNodes(void) const;
+	void		   setLearnRate(const float newLearnRate);
+	float		   getLearnRate(void) const;
+	size_t		   getHiddenLayerLength(void) const;
+	size_t		   getNumberOfInputsNodes(void) const;
+	size_t		   getNumberOfHiddenNodes(void) const;
+	size_t		   getNumberOfOutputsNodes(void) const;
+	const DMatrix &getBiasAt(const size_t index) const;
+	const DMatrix &getWeigthAt(const size_t index) const;
 
 	// Serialize NeuralNetwork to a JSON-like text file
 	static void serialize(const NeuralNetwork &nn,

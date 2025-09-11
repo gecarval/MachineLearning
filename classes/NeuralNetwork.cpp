@@ -175,12 +175,27 @@ void NeuralNetwork::train(const DMatrix &inputArray, const DMatrix &desired) {
 	}
 }
 
+const DMatrix &NeuralNetwork::getBiasAt(const size_t index) const {
+	if (index > this->hiddenLayerLen) return (this->bias[this->hiddenLayerLen]);
+	return (this->bias[index]);
+}
+
+const DMatrix &NeuralNetwork::getWeigthAt(const size_t index) const {
+	if (index > this->hiddenLayerLen)
+		return (this->weight[this->hiddenLayerLen]);
+	return (this->weight[index]);
+}
+
 void NeuralNetwork::setLearnRate(const float newLearnRate) {
 	this->learnRate = newLearnRate;
 }
 
 float NeuralNetwork::getLearnRate(void) const {
 	return (this->learnRate);
+}
+
+size_t NeuralNetwork::getHiddenLayerLength(void) const {
+	return (this->hiddenLayerLen);
 }
 
 size_t NeuralNetwork::getNumberOfInputsNodes(void) const {
