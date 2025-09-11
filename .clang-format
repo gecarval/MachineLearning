@@ -1,0 +1,11 @@
+AllowShortFunctionsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: true
+AllowShortLoopsOnASingleLine: true
+AlignConsecutiveDeclarations: true
+AlignAfterOpenBracket: Align
+IndentCaseLabels: true
+SortIncludes: true
+ColumnLimit: 80
+UseTab: Always
+IndentWidth: 4
+TabWidth: 4
