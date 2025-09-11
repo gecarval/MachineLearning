@@ -48,6 +48,7 @@ static const unsigned int inputNodes = 2;
 static const unsigned int hiddenNodes = 6;
 static const unsigned int outputNodes = 1;
 static const unsigned int hiddenLayerLength = 3;
+static const float		  learningRate = 0.001f;
 
 // Perceptron Settings
 static const Line		  initialLine = {500.0f, 0.5f, -200.0f};

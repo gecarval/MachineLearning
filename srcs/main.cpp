@@ -19,6 +19,7 @@ void initPoints(Machine &machine) {
 void initEngine(Machine &machine) {
 	machine.NN =
 		NeuralNetwork(inputNodes, hiddenNodes, outputNodes, hiddenLayerLength);
+	machine.NN.setLearnRate(learningRate);
 	machine.camera = (Camera2D){offset, target, rotation, zoom};
 	machine.state = STATE::MAINMENU;
 	machine.line = initialLine;
