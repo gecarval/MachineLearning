@@ -32,6 +32,7 @@ static const unsigned int windowWidth = 800;
 static const unsigned int windowHeight = 600;
 static const unsigned int frameLimit = 120;
 static const Vector2	  drawFpsPos = (Vector2){10.0f, 10.0f};
+static const Color		  backGroundColor = RAYWHITE;
 
 // Machine Camera2D Settings
 static const float	 posX = windowWidth / 2.0f;
@@ -44,14 +45,11 @@ static const float	 zoom = 1.0f;
 
 // Neural Network Settings
 static const unsigned int inputNodes = 2;
-static const unsigned int hiddenNodes = 2;
+static const unsigned int hiddenNodes = 6;
 static const unsigned int outputNodes = 1;
-static const unsigned int hiddenLayerLength = 1;
+static const unsigned int hiddenLayerLength = 3;
 
-// Render Texture Settings
-static const Color backGroundColor = RAYWHITE;
-
-// Simulation Settings
+// Perceptron Settings
 static const Line		  initialLine = {500.0f, 0.5f, -200.0f};
 static const unsigned int initialPointAmount = 5000;
 static const unsigned int pointRadius = 3;

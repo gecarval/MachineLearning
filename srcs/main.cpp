@@ -17,14 +17,8 @@ void initPoints(Machine &machine) {
 }
 
 void initEngine(Machine &machine) {
-	try {
-		machine.NN = NeuralNetwork::deserialize("NeuralNetwork.json");
-	} catch (const std::runtime_error &error) {
-		std::cerr << "[WARNING]" << std::endl;
-		std::cerr << error.what() << std::endl;
-		machine.NN = NeuralNetwork(inputNodes, hiddenNodes, outputNodes,
-								   hiddenLayerLength);
-	}
+	machine.NN =
+		NeuralNetwork(inputNodes, hiddenNodes, outputNodes, hiddenLayerLength);
 	machine.camera = (Camera2D){offset, target, rotation, zoom};
 	machine.state = STATE::MAINMENU;
 	machine.line = initialLine;
