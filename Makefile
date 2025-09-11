@@ -29,11 +29,14 @@ IMGUIINC =	./includes/imgui/imgui.h					\
 			./includes/imgui/extras/IconsFontAwesome6.h	\
 			./includes/imgui/extras/FA6FreeSolidFontData.h
 
-SRC =	./classes/Perceptron.cpp			\
-		./classes/NeuralNetwork.cpp			\
-		./classes/DMatrix.cpp				\
-		./srcs/input.cpp					\
-		./srcs/menu.cpp						\
+SRC =	./classes/DMatrix.cpp					\
+		./classes/Perceptron.cpp				\
+		./classes/NeuralNetwork.cpp				\
+		./srcs/states/mainMenu.cpp				\
+		./srcs/states/perceptronState.cpp		\
+		./srcs/states/neuralNetworkState.cpp	\
+		./srcs/input.cpp						\
+		./srcs/menu.cpp							\
 		./srcs/main.cpp
 
 INCS =	-I./classes/							\
