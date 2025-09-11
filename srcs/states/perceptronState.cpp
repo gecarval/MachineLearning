@@ -18,7 +18,7 @@ static const Vector2 w0LinePos = perceptronCenter + w0LineOffset;
 static const Vector2 w1LinePos = perceptronCenter + w1LineOffset;
 static const Vector2 yLinePos = perceptronCenter + yLineOffset;
 
-void inputHandler(Machine &machine) {
+static void inputHandler(Machine &machine) {
 	const float	  walkSpeed = 20.0f / machine.camera.zoom;
 	const float	  zoomDelta = GetMouseWheelMove() * machine.camera.zoom * 0.1f;
 	const Vector2 mousePan = GetMouseDelta() / machine.camera.zoom;
@@ -64,7 +64,7 @@ static void settingsMenu(Machine &machine) {
 	}
 }
 
-void renderImGui(Machine &machine) {
+static void renderImGui(Machine &machine) {
 	rlImGuiBegin();
 	ImGui::Begin("Engine Settings");
 	settingsMenu(machine);
