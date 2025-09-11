@@ -18,7 +18,7 @@ static const Vector2 w0LinePos = perceptronCenter + w0LineOffset;
 static const Vector2 w1LinePos = perceptronCenter + w1LineOffset;
 static const Vector2 yLinePos = perceptronCenter + yLineOffset;
 
-void DrawPerceptron(Machine &machine) {
+void renderPerceptron(Machine &machine) {
 	// Get perceptron values
 	const float b = machine.brain.getBias();
 	const float bh = machine.brain.getBias() / 2;
@@ -111,7 +111,7 @@ void DrawPoints(Machine &machine) {
 	}
 }
 
-void renderPerceptron(Machine &machine) {
+void renderCartesianPlane(Machine &machine) {
 	BeginMode2D(machine.camera);
 	ClearBackground(backGroundColor);
 	DrawPoints(machine);
@@ -124,8 +124,8 @@ int handlePerceptronState(Machine &machine) {
 	if (IsKeyPressed(KEY_ESCAPE)) return (STATE::MAINMENU);
 	engineInput(machine);
 	BeginDrawing();
+	renderCartesianPlane(machine);
 	renderPerceptron(machine);
-	DrawPerceptron(machine);
 	renderImGui(machine);
 	DrawFPS(drawFpsPos.x, drawFpsPos.y);
 	EndDrawing();

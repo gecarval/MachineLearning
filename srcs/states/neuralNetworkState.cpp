@@ -70,6 +70,7 @@ int handleNeuralNetworkState(Machine &machine) {
 	SetExitKey(0);
 	if (IsKeyPressed(KEY_ESCAPE)) return (STATE::MAINMENU);
 	BeginDrawing();
+	ClearBackground(backGroundColor);
 	renderNeuralNetwork(machine);
 	DrawFPS(drawFpsPos.x, drawFpsPos.y);
 	EndDrawing();
