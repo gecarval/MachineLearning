@@ -96,7 +96,8 @@ NeuralNetwork::NeuralNetwork(const size_t numberOfInputsNodes,
 	this->bias[this->hiddenLayerLen].randomize(this->numberOfOutputNodes);
 }
 
-NeuralNetwork::NeuralNetwork(const NeuralNetwork &other) {
+NeuralNetwork::NeuralNetwork(const NeuralNetwork &other)
+	: weight(NULL), bias(NULL) {
 	*this = other;
 }
 
@@ -112,11 +113,11 @@ NeuralNetwork &NeuralNetwork::operator=(const NeuralNetwork &other) {
 		this->numberOfHiddenNodes = other.numberOfHiddenNodes;
 		this->numberOfOutputNodes = other.numberOfOutputNodes;
 		this->hiddenLayerLen = other.hiddenLayerLen;
-		delete[] this->weight;
+		if (this->weight != NULL) delete[] this->weight;
 		this->weight = new DMatrix[this->hiddenLayerLen + 1];
 		for (size_t i = 0; i < this->hiddenLayerLen + 1; i++)
 			this->weight[i] = other.weight[i];
-		delete[] this->bias;
+		if (this->bias != NULL) delete[] this->bias;
 		this->bias = new DMatrix[this->hiddenLayerLen + 1];
 		for (size_t i = 0; i < this->hiddenLayerLen + 1; i++)
 			this->bias[i] = other.bias[i];
