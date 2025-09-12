@@ -1,7 +1,7 @@
 #include "NeuralNetwork.hpp"
 
 static float clampGradient(const float x) {
-	static const float max = NeuralNetwork::CLAMP;
+	static const float max = 1.0f;
 	if (std::isnan(x) || std::isinf(x)) return (max);
 	float r = std::abs(x) < max ? x : x > 0 ? max : -max;
 	return (r);
@@ -200,7 +200,7 @@ void NeuralNetwork::clampWeightsAndBiases() {
 					weight[i].randomize(fan_in + fan_out);
 					break;
 				} else if (std::abs(val) > weight_clamp) {
-					val = 1.0f;
+					val = val / (weight_clamp * 0.1f);
 				}
 			}
 		}
@@ -213,7 +213,7 @@ void NeuralNetwork::clampWeightsAndBiases() {
 					bias[i].randomize(fan_in + fan_out);
 					break;
 				} else if (std::abs(val) > bias_clamp) {
-					val = 1.0f;
+					val = val / (bias_clamp * 0.1f);
 				}
 			}
 		}
