@@ -8,8 +8,10 @@ void initPoints(Machine &machine) {
 	machine.points = std::vector<Vector2>(initialPointAmount);
 	machine.desired = std::vector<float>(initialPointAmount);
 	for (size_t i = 0; i < initialPointAmount; i++) {
-		const float randXPos = GetRandomValue(-windowWidth, windowWidth);
-		const float randYPos = GetRandomValue(-windowHeight, windowHeight);
+		const float randXPos =
+			GetRandomValue(-GetScreenWidth(), GetScreenWidth());
+		const float randYPos =
+			GetRandomValue(-GetScreenHeight(), GetScreenHeight());
 		machine.points[i] = (Vector2){randXPos, randYPos};
 		const float lineY = calcDeclive(initialLine.m, randXPos, initialLine.d);
 		machine.desired[i] = machine.points[i].y > lineY ? 1 : -1;
@@ -17,15 +19,19 @@ void initPoints(Machine &machine) {
 }
 
 void initEngine(Machine &machine) {
+	InitWindow(windowWidth, windowHeight, windowTitle);
+	const int monitorID = GetCurrentMonitor();
+	const int dynamicWindowWidth = GetMonitorWidth(monitorID) * 0.9f;
+	const int dynamicWindowHeight = GetMonitorHeight(monitorID) * 0.9f;
+	SetWindowSize(dynamicWindowWidth, dynamicWindowHeight);
+	SetTargetFPS(frameLimit);
+	rlImGuiSetup(true);
 	machine.NN =
 		NeuralNetwork(inputNodes, hiddenNodes, outputNodes, hiddenLayerLength);
 	machine.NN.setLearnRate(learningRate);
 	machine.camera = (Camera2D){offset, target, rotation, zoom};
 	machine.state = STATE::MAINMENU;
 	machine.line = initialLine;
-	InitWindow(windowWidth, windowHeight, windowTitle);
-	SetTargetFPS(frameLimit);
-	rlImGuiSetup(true);
 	initPoints(machine);
 }
 

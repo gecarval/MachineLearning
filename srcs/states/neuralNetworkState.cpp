@@ -1,10 +1,5 @@
 #include "../../includes/Machine.hpp"
 
-// Neural Network Image Grid Map
-static const float grid = 10.0f;
-static const float cols = windowWidth / grid;
-static const float rows = windowHeight / grid / 2;
-
 // Neural Network TrainData
 std::vector<std::vector<float>> trainData;
 std::vector<std::vector<float>> trainResult;
@@ -14,6 +9,14 @@ static const int				resLen = 1;
 static void inputHandler(Machine &machine) {
 	if (!IsWindowFocused()) {
 		return;
+	}
+	if (IsKeyDown(KEY_LEFT_CONTROL)) {
+		if (IsKeyPressed(KEY_Z)) {
+			if (!trainData.empty()) {
+				trainData.pop_back();
+				trainResult.pop_back();
+			}
+		}
 	}
 	if (IsKeyPressed(KEY_R)) {
 		machine.NN = NeuralNetwork(inputNodes, hiddenNodes, outputNodes,
@@ -37,10 +40,11 @@ static void inputHandler(Machine &machine) {
 	}
 	if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 		const Vector2 &mousePos = GetMousePosition();
-		if (mousePos.y > windowHeight / 2.0f) {
-			const float mouseX = Remap(mousePos.x, 0, windowWidth, 0.0f, 1.0f);
-			const float mouseY = Remap(mousePos.y, windowHeight / 2.0f,
-									   windowHeight, 0.0f, 1.0f);
+		if (mousePos.y > GetScreenHeight() / 2.0f) {
+			const float mouseX =
+				Remap(mousePos.x, 0, GetScreenWidth(), 0.0f, 1.0f);
+			const float mouseY = Remap(mousePos.y, GetScreenHeight() / 2.0f,
+									   GetScreenHeight(), 0.0f, 1.0f);
 			std::vector<float> data;
 			std::vector<float> res;
 			data.push_back(mouseX);
@@ -52,10 +56,11 @@ static void inputHandler(Machine &machine) {
 	}
 	if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
 		const Vector2 &mousePos = GetMousePosition();
-		if (mousePos.y > windowHeight / 2.0f) {
-			const float mouseX = Remap(mousePos.x, 0, windowWidth, 0.0f, 1.0f);
-			const float mouseY = Remap(mousePos.y, windowHeight / 2.0f,
-									   windowHeight, 0.0f, 1.0f);
+		if (mousePos.y > GetScreenHeight() / 2.0f) {
+			const float mouseX =
+				Remap(mousePos.x, 0, GetScreenWidth(), 0.0f, 1.0f);
+			const float mouseY = Remap(mousePos.y, GetScreenHeight() / 2.0f,
+									   GetScreenHeight(), 0.0f, 1.0f);
 			std::vector<float> data;
 			std::vector<float> res;
 			data.push_back(mouseX);
@@ -70,70 +75,85 @@ static void inputHandler(Machine &machine) {
 void DrawNeuralNetwork(const NeuralNetwork &nn, float screenWidth,
 					   float screenHeight) {
 	// Colors
-	Color inputColor = BLUE;
-	Color hiddenColor = GREEN;
-	Color outputColor = RED;
-	Color lineColorPositive = {
+	static const Color inputColor = BLUE;
+	static const Color hiddenColor = GREEN;
+	static const Color outputColor = RED;
+	static const Color lineColorPositive = {
 		0, 255, 0, 100}; // Semi-transparent green for positive weights
-	Color lineColorNegative = {
+	static const Color lineColorNegative = {
 		255, 0, 0, 100}; // Semi-transparent red for negative weights
-	Color textColor = WHITE;
+	static const Color textColor = WHITE;
+	static const Color biasColor = YELLOW;
 
-	// Layout parameters
-	const float nodeRadius = 20.0f;
-	const float layerSpacing =
-		screenWidth /
-		(nn.getNumberOfHiddenNodes() > 0 ? nn.getHiddenLayerLength() + 2 : 2);
-	const float nodeSpacing = 50.0f;
-	const float weightMaxThickness = 5.0f;
-	const float maxWeight = 2.0f; // For normalizing weight visualization
-
-	// Calculate number of layers
+	// Calculate number of layers and max nodes for dynamic scaling
 	size_t totalLayers =
 		nn.getHiddenLayerLength() + 2; // Input + hidden layers + output
-	float xOffset = layerSpacing / 2;
+	size_t inputNodes = nn.getNumberOfInputsNodes();
+	size_t hiddenNodes = nn.getNumberOfHiddenNodes();
+	size_t outputNodes = nn.getNumberOfOutputsNodes();
+	size_t maxNodesPerLayer = std::max({inputNodes, hiddenNodes, outputNodes});
+
+	// Layout parameters (fully dynamic based on layers and nodes)
+	const float usableHeight = screenHeight * 0.9f;
+	const float usableWidth = screenWidth * 0.9f;
+	const float nodeSpacing = (maxNodesPerLayer > 1)
+								  ? usableHeight / (maxNodesPerLayer - 1)
+								  : usableHeight * 0.5f;
+	const float layerSpacing = (totalLayers > 1)
+								   ? usableWidth / (totalLayers - 1)
+								   : usableWidth * 0.5f;
+	const float nodeRadius = std::min(screenWidth, screenHeight) * 0.015f;
+	const float weightMaxThickness = nodeRadius * 0.10f;
+	const float weightMinThickness = nodeRadius * 0.02f;
+	const float maxWeight = 2.0f;
+	const float textSize = nodeRadius * 1.5f;
+	const float biasTextSize = textSize * 0.75f;
+	const float biasCircleRadius = nodeRadius * 0.25f;
+
+	// Remap function for weight thickness (logarithmic scaling)
+	auto remapWeightToThickness = [&](float weight) -> float {
+		float absWeight = std::abs(weight);
+		// Logarithmic scaling: thickness = min + (max - min) * log(1 +
+		// absWeight) / log(1 + maxWeight)
+		float normalized =
+			std::log1p(absWeight) /
+			std::log1p(maxWeight); // log1p for stability with small values
+		return weightMinThickness +
+			   (weightMaxThickness - weightMinThickness) * normalized;
+	};
+
+	// Initial xOffset for first layer
+	float xOffset = layerSpacing * 0.2f;
 
 	// Store node positions for drawing connections
 	std::vector<std::vector<Vector2>> nodePositions(totalLayers);
 
 	// Draw input layer
-	size_t inputNodes = nn.getNumberOfInputsNodes();
-	float  yStart = screenHeight / 2 - (inputNodes - 1) * nodeSpacing / 2;
+	float yStart = screenHeight * 0.5f - (inputNodes - 1) * nodeSpacing * 0.5f;
 	nodePositions[0].resize(inputNodes);
 	for (size_t i = 0; i < inputNodes; ++i) {
 		nodePositions[0][i] = {xOffset, yStart + i * nodeSpacing};
 		DrawCircleV(nodePositions[0][i], nodeRadius, inputColor);
-		DrawText(("I" + std::to_string(i)).c_str(), nodePositions[0][i].x - 10,
-				 nodePositions[0][i].y - 5, 15, textColor);
 	}
 	xOffset += layerSpacing;
 
-	// Draw hidden layers
+	// Draw hidden layers (assuming uniform hidden layer size)
 	for (size_t layer = 0; layer < nn.getHiddenLayerLength(); ++layer) {
-		size_t hiddenNodes = nn.getNumberOfHiddenNodes();
-		yStart = screenHeight / 2 - (hiddenNodes - 1) * nodeSpacing / 2;
+		yStart = screenHeight * 0.5f - (hiddenNodes - 1) * nodeSpacing * 0.5f;
 		nodePositions[layer + 1].resize(hiddenNodes);
 		for (size_t i = 0; i < hiddenNodes; ++i) {
 			nodePositions[layer + 1][i] = {xOffset, yStart + i * nodeSpacing};
 			DrawCircleV(nodePositions[layer + 1][i], nodeRadius, hiddenColor);
-			DrawText(
-				("H" + std::to_string(layer) + "_" + std::to_string(i)).c_str(),
-				nodePositions[layer + 1][i].x - 15,
-				nodePositions[layer + 1][i].y - 5, 15, textColor);
 		}
 		xOffset += layerSpacing;
 	}
 
 	// Draw output layer
-	size_t outputNodes = nn.getNumberOfOutputsNodes();
-	yStart = screenHeight / 2 - (outputNodes - 1) * nodeSpacing / 2;
+	yStart = screenHeight * 0.5f - (outputNodes - 1) * nodeSpacing * 0.5f;
 	nodePositions[totalLayers - 1].resize(outputNodes);
 	for (size_t i = 0; i < outputNodes; ++i) {
 		nodePositions[totalLayers - 1][i] = {xOffset, yStart + i * nodeSpacing};
 		DrawCircleV(nodePositions[totalLayers - 1][i], nodeRadius, outputColor);
-		DrawText(("O" + std::to_string(i)).c_str(),
-				 nodePositions[totalLayers - 1][i].x - 10,
-				 nodePositions[totalLayers - 1][i].y - 5, 15, textColor);
 	}
 
 	// Draw weights (lines between layers)
@@ -144,25 +164,25 @@ void DrawNeuralNetwork(const NeuralNetwork &nn, float screenWidth,
 				Vector2 start = nodePositions[layer][j];
 				Vector2 end = nodePositions[layer + 1][i];
 				float	weight = weights.getValue(i, j);
-				float	thickness =
-					std::min(weightMaxThickness,
-							 std::abs(weight) / maxWeight * weightMaxThickness);
-				Color lineColor =
-					weight >= 0 ? lineColorPositive : lineColorNegative;
+				float	thickness = remapWeightToThickness(weight);
+				Color	lineColor =
+					  weight >= 0 ? lineColorPositive : lineColorNegative;
 				DrawLineEx(start, end, thickness, lineColor);
 			}
 		}
 	}
 
-	// Draw biases (as small circles or labels near nodes)
+	// Draw biases (as small circles and labels near nodes)
 	for (size_t layer = 0; layer < nn.getHiddenLayerLength() + 1; ++layer) {
 		const DMatrix &biases = nn.getBiasAt(layer);
 		for (size_t i = 0; i < biases.getRowLength(); ++i) {
 			Vector2 nodePos = nodePositions[layer + 1][i];
 			float	bias = biases.getValue(i, 0);
-			DrawCircleV({nodePos.x + nodeRadius + 10, nodePos.y}, 5.0f, YELLOW);
-			DrawText(TextFormat("%.2f", bias), nodePos.x + nodeRadius + 15,
-					 nodePos.y - 5, 10, textColor);
+			DrawCircleV({nodePos.x + nodeRadius + nodeRadius * 0.5f, nodePos.y},
+						biasCircleRadius, biasColor);
+			DrawText(TextFormat("%.2f", bias),
+					 nodePos.x + nodeRadius + nodeRadius * 0.75f,
+					 nodePos.y - nodeRadius * 0.25f, biasTextSize, textColor);
 		}
 	}
 }
@@ -176,28 +196,35 @@ void trainMachineNeuralNetwork(Machine &machine) {
 }
 
 void renderNeuralNetwork(Machine &machine) {
-	for (int i = 0; i < cols; i++) {
-		for (int j = 0; j < rows; j++) {
-			const float				 x0 = i / cols;
-			const float				 x1 = j / rows;
-			const float				 x = i * grid;
-			const float				 y = j * grid + windowHeight / 2.0f;
+	// Neural Network Image Grid Map
+	static const float amount = 50.0f;
+	const Vector2	   grid =
+		(Vector2){GetScreenWidth() / amount, GetScreenHeight() / amount};
+	const float cols = GetScreenWidth() / grid.x;
+	const float rows = (GetScreenHeight() / 2.0f) / grid.y;
+
+	for (int i = 0; i <= rows + 1; i++) {
+		for (int j = 0; j < cols; j++) {
+			const float				 x0 = j / cols;
+			const float				 x1 = i / rows;
+			const float				 x = j * grid.x;
+			const float				 y = i * grid.y + GetScreenHeight() / 2.0f;
 			const Vector2			 gridPos = (Vector2){x, y};
-			const Vector2			 gridSize = (Vector2){grid, grid};
 			const std::vector<float> input = {x0, x1};
 			const std::vector<float> output = machine.NN.feedFoward(input);
 			const unsigned char		 alpha = Remap(output[0], 0, 1, 0, 255);
 			const Color gridColor = (Color){alpha, alpha, alpha, 255};
-			DrawRectangleV(gridPos, gridSize, gridColor);
+			DrawRectangleV(gridPos, grid, gridColor);
 		}
 	}
 	for (size_t i = 0; i < trainData.size(); i++) {
 		static const float radius = 2.0f;
 		static const Color color1 = RED;
 		static const Color color2 = GREEN;
-		const float pointX = Remap(trainData[i][0], 0.0f, 1.0f, 0, windowWidth);
-		const float pointY = Remap(trainData[i][1], 0.0f, 1.0f,
-								   windowHeight / 2.0f, windowHeight);
+		const float		   pointX =
+			Remap(trainData[i][0], 0.0f, 1.0f, 0, GetScreenWidth());
+		const float	  pointY = Remap(trainData[i][1], 0.0f, 1.0f,
+									 GetScreenHeight() / 2.0f, GetScreenHeight());
 		const Vector2 center = {pointX, pointY};
 		if (trainResult[i][0] > 0.0f) {
 			DrawCircleV(center, radius, color1);
@@ -211,7 +238,7 @@ int handleNeuralNetworkState(Machine &machine) {
 	SetExitKey(0);
 	if (IsKeyPressed(KEY_ESCAPE)) return (STATE::MAINMENU);
 	inputHandler(machine);
-	static const int trainLoop = 1000;
+	static const int trainLoop = 100;
 	if (!trainData.empty()) {
 		for (int i = 0; i < trainLoop; i++) {
 			trainMachineNeuralNetwork(machine);
@@ -220,7 +247,7 @@ int handleNeuralNetworkState(Machine &machine) {
 	BeginDrawing();
 	ClearBackground(BLACK);
 	renderNeuralNetwork(machine);
-	DrawNeuralNetwork(machine.NN, windowWidth, windowHeight / 2.0f);
+	DrawNeuralNetwork(machine.NN, GetScreenWidth(), GetScreenHeight() / 2.0f);
 	DrawFPS(drawFpsPos.x, drawFpsPos.y);
 	EndDrawing();
 	return (STATE::NEURALNETWORK);
