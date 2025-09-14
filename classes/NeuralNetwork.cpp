@@ -160,12 +160,12 @@ void NeuralNetwork::train(const DMatrix &inputArray, const DMatrix &desired) {
 		}
 	}
 	DMatrix layerError(desired - outputs[this->hiddenLayerLen]);
-	for (long i = this->hiddenLayerLen; i >= 0; i--) {
-		if ((size_t)i != this->hiddenLayerLen)
+	for (size_t i = this->hiddenLayerLen; true; i--) {
+		if (i != this->hiddenLayerLen)
 			layerError = this->weight[i + 1].transpose() * layerError;
 		layerError.map(errorTolerance);
 		DMatrix gradient(outputs[i]);
-		if ((size_t)i != this->hiddenLayerLen)
+		if (i != this->hiddenLayerLen)
 			gradient.map(dRelu);
 		else
 			gradient.map(dSigmoid);
@@ -173,10 +173,13 @@ void NeuralNetwork::train(const DMatrix &inputArray, const DMatrix &desired) {
 		gradient *= this->learnRate;
 		gradient.map(clampGradient);
 		const DMatrix &transposed =
-			i == 0 ? inputArray.transpose() : outputs[i].transpose();
+			i == 0 ? inputArray.transpose() : outputs[i - 1].transpose();
 		const DMatrix weightDelta(gradient * transposed);
 		this->weight[i] += weightDelta;
 		this->bias[i] += gradient;
+		if (i == 0) {
+			break;
+		}
 	}
 	this->clampWeightsAndBiases();
 }
