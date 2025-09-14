@@ -198,7 +198,7 @@ void NeuralNetwork::clampWeightsAndBiases() {
 		const size_t weight_cols = weight[i].getColLength();
 		for (size_t r = 0; r < weight_rows; ++r) {
 			for (size_t c = 0; c < weight_cols; ++c) {
-				float &val = weight[i][r][c];
+				float &val = weight[i](r, c);
 				if (std::isnan(val) || std::isinf(val)) {
 					weight[i].randomize(fan_in + fan_out);
 					break;
@@ -211,7 +211,7 @@ void NeuralNetwork::clampWeightsAndBiases() {
 		const size_t bias_cols = bias[i].getColLength();
 		for (size_t r = 0; r < bias_rows; ++r) {
 			for (size_t c = 0; c < bias_cols; ++c) {
-				float &val = bias[i][r][c];
+				float &val = bias[i](r, c);
 				if (std::isnan(val) || std::isinf(val)) {
 					bias[i].randomize(fan_in + fan_out);
 					break;

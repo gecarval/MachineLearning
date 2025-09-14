@@ -1,246 +1,221 @@
 #include "DMatrix.hpp"
 
-DMatrix::DMatrix() : rows(2), cols(2), matrix(NULL) {
-	this->matrix = new float *[this->rows];
-	for (size_t i = 0; i < this->rows; i++) {
-		this->matrix[i] = new float[this->cols];
-		for (size_t j = 0; j < this->cols; j++) this->matrix[i][j] = 0;
-	}
+DMatrix::DMatrix() : rows(2), cols(2), matrix(this->rows * this->cols, 0.0f) {
 }
 
-DMatrix::DMatrix(const size_t rows, const size_t cols)
-	: rows(rows), cols(cols), matrix(NULL) {
-	this->matrix = new float *[this->rows];
-	for (size_t i = 0; i < this->rows; i++) {
-		this->matrix[i] = new float[this->cols];
-		for (size_t j = 0; j < this->cols; j++) this->matrix[i][j] = 0;
-	}
+DMatrix::DMatrix(size_t row, size_t col)
+	: rows(row), cols(col), matrix(row * col, 0.0f) {
 }
 
 DMatrix::DMatrix(const std::vector<float> &vectorArray)
-	: rows(vectorArray.size()), cols(1), matrix(NULL) {
-	this->matrix = new float *[this->rows];
-	for (size_t i = 0; i < this->rows; i++) {
-		this->matrix[i] = new float[this->cols];
-		this->matrix[i][0] = vectorArray[i];
-	}
-}
-
-DMatrix::~DMatrix() {
-	for (size_t i = 0; i < this->rows; i++) delete[] this->matrix[i];
-	delete[] this->matrix;
+	: rows(vectorArray.size()), cols(1) {
+	this->matrix.reserve(rows * cols);
+	this->matrix = vectorArray;
 }
 
 DMatrix::DMatrix(const DMatrix &other)
-	: rows(other.rows), cols(other.cols), matrix(NULL) {
-	if (this != &other) {
-		*this = other;
-	}
+	: rows(other.rows), cols(other.cols), matrix(other.matrix) {
+}
+
+DMatrix::~DMatrix() {
 }
 
 DMatrix &DMatrix::operator=(const DMatrix &other) {
 	if (this != &other) {
-		if (this->matrix != NULL) {
-			for (size_t i = 0; i < this->rows; i++) delete[] this->matrix[i];
-			delete[] this->matrix;
-		}
-		this->cols = other.cols;
 		this->rows = other.rows;
-		this->matrix = new float *[this->rows];
-		for (size_t i = 0; i < this->rows; i++) {
-			this->matrix[i] = new float[this->cols];
-			for (size_t j = 0; j < this->cols; j++)
-				this->matrix[i][j] = other.matrix[i][j];
-		}
+		this->cols = other.cols;
+		this->matrix = other.matrix;
 	}
 	return (*this);
 }
 
-float *DMatrix::operator[](const size_t index) {
-	const size_t accessY = index < this->rows ? index : this->rows;
-	return (this->matrix[accessY]);
+float &DMatrix::operator()(size_t row, size_t col) {
+	if (row >= rows || col >= cols)
+		throw std::out_of_range("Matrix index out of bounds");
+	return (this->matrix[row * this->cols + col]);
 }
 
-const float *DMatrix::operator[](const size_t index) const {
-	const size_t accessY = index < this->rows ? index : this->rows;
-	return (this->matrix[accessY]);
+const float &DMatrix::operator()(size_t row, size_t col) const {
+	if (row >= this->rows || col >= this->cols)
+		throw std::out_of_range("Matrix index out of bounds");
+	return (this->matrix[row * this->cols + col]);
+}
+
+DMatrix DMatrix::operator+(const DMatrix &other) const {
+	if (this->rows != other.rows || this->cols != other.cols)
+		throw std::invalid_argument("Matrix dimensions mismatch operator+");
+	DMatrix result(this->rows, this->cols);
+	std::transform(this->matrix.begin(), this->matrix.end(),
+				   other.matrix.begin(), result.matrix.begin(),
+				   std::plus<float>());
+	return (result);
+}
+
+DMatrix DMatrix::operator-(const DMatrix &other) const {
+	if (this->rows != other.rows || this->cols != other.cols)
+		throw std::invalid_argument("Matrix dimensions mismatch operator-");
+	DMatrix result(this->rows, this->cols);
+	std::transform(this->matrix.begin(), this->matrix.end(),
+				   other.matrix.begin(), result.matrix.begin(),
+				   std::minus<float>());
+	return (result);
+}
+
+DMatrix DMatrix::operator*(const DMatrix &other) const {
+	if (this->cols != other.rows)
+		throw std::invalid_argument(
+			"Matrix dimensions incompatible for multiplication");
+	DMatrix result(rows, other.cols);
+	for (size_t i = 0; i < this->rows; i += BLOCK_SIZE) {
+		for (size_t j = 0; j < other.cols; j += BLOCK_SIZE) {
+			for (size_t k = 0; k < this->cols; k += BLOCK_SIZE) {
+				for (size_t ii = i; ii < std::min(i + BLOCK_SIZE, this->rows);
+					 ++ii) {
+					for (size_t jj = j;
+						 jj < std::min(j + BLOCK_SIZE, other.cols); ++jj) {
+						float sum = 0.0f;
+						for (size_t kk = k;
+							 kk < std::min(k + BLOCK_SIZE, this->cols); ++kk) {
+							sum += this->matrix[ii * cols + kk] *
+								   other.matrix[kk * other.cols + jj];
+						}
+						result.matrix[ii * result.cols + jj] += sum;
+					}
+				}
+			}
+		}
+	}
+	return (result);
 }
 
 DMatrix &DMatrix::operator+=(const DMatrix &other) {
-	if (this->cols != other.cols || this->rows != other.rows) return (*this);
-	for (size_t i = 0; i < this->rows; i++)
-		for (size_t j = 0; j < this->cols; j++)
-			this->matrix[i][j] += other.matrix[i][j];
+	if (this->rows != other.rows || this->cols != other.cols)
+		throw std::invalid_argument("Matrix dimensions mismatch operator+=");
+	std::transform(this->matrix.begin(), this->matrix.end(),
+				   other.matrix.begin(), this->matrix.begin(),
+				   std::plus<float>());
 	return (*this);
 }
 
 DMatrix &DMatrix::operator-=(const DMatrix &other) {
-	if (this->cols != other.cols || this->rows != other.rows) return (*this);
-	for (size_t i = 0; i < this->rows; i++)
-		for (size_t j = 0; j < this->cols; j++)
-			this->matrix[i][j] -= other.matrix[i][j];
+	if (this->rows != other.rows || this->cols != other.cols)
+		throw std::invalid_argument("Matrix dimensions mismatch operator-=");
+	std::transform(this->matrix.begin(), this->matrix.end(),
+				   other.matrix.begin(), this->matrix.begin(),
+				   std::minus<float>());
 	return (*this);
 }
 
 DMatrix &DMatrix::operator*=(const DMatrix &other) {
-	if (this->cols != other.rows) return (*this);
-	DMatrix m(this->rows, other.cols);
-	for (size_t i = 0; i < m.rows; i++) {
-		for (size_t j = 0; j < m.cols; j++) {
-			float sum = 0;
-			for (size_t k = 0; k < this->cols; k++)
-				sum += this->matrix[i][k] * other.matrix[k][j];
-			m.matrix[i][j] = sum;
+	if (this->cols != other.rows)
+		throw std::invalid_argument(
+			"Matrix dimensions incompatible for multiplication");
+	*this = *this * other;
+	return (*this);
+}
+
+DMatrix DMatrix::operator+(float n) const {
+	DMatrix result(this->rows, this->cols);
+	std::transform(this->matrix.begin(), this->matrix.end(),
+				   result.matrix.begin(), [n](float x) { return x + n; });
+	return (result);
+}
+
+DMatrix DMatrix::operator-(float n) const {
+	DMatrix result(this->rows, this->cols);
+	std::transform(this->matrix.begin(), this->matrix.end(),
+				   result.matrix.begin(), [n](float x) { return x - n; });
+	return (result);
+}
+
+DMatrix DMatrix::operator*(float n) const {
+	DMatrix result(this->rows, this->cols);
+	std::transform(this->matrix.begin(), this->matrix.end(),
+				   result.matrix.begin(), [n](float x) { return x * n; });
+	return (result);
+}
+
+DMatrix &DMatrix::operator+=(float n) {
+	std::transform(matrix.begin(), matrix.end(), matrix.begin(),
+				   [n](float x) { return x + n; });
+	return (*this);
+}
+
+DMatrix &DMatrix::operator-=(float n) {
+	std::transform(this->matrix.begin(), this->matrix.end(),
+				   this->matrix.begin(), [n](float x) { return x - n; });
+	return (*this);
+}
+
+DMatrix &DMatrix::operator*=(float n) {
+	std::transform(this->matrix.begin(), this->matrix.end(),
+				   this->matrix.begin(), [n](float x) { return x * n; });
+	return (*this);
+}
+
+std::vector<float> DMatrix::toVector() const {
+	return (this->matrix);
+}
+
+DMatrix DMatrix::transpose() const {
+	DMatrix result(this->cols, this->rows);
+	for (size_t i = 0; i < this->rows; ++i) {
+		for (size_t j = 0; j < this->cols; ++j) {
+			result.matrix[j * rows + i] = this->matrix[i * cols + j];
 		}
 	}
-	*this = m;
-	return (*this);
+	return (result);
 }
 
-DMatrix DMatrix::operator+(const DMatrix &other) const {
-	if (this->cols != other.cols || this->rows != other.rows) return (*this);
-	DMatrix m(*this);
-	for (size_t i = 0; i < m.rows; i++)
-		for (size_t j = 0; j < m.cols; j++)
-			m.matrix[i][j] += other.matrix[i][j];
-	return (m);
+float DMatrix::totalSum() const {
+	return (std::accumulate(this->matrix.begin(), this->matrix.end(), 0.0f));
 }
 
-DMatrix DMatrix::operator-(const DMatrix &other) const {
-	if (this->cols != other.cols || this->rows != other.rows) return (*this);
-	DMatrix m(*this);
-	for (size_t i = 0; i < m.rows; i++)
-		for (size_t j = 0; j < m.cols; j++)
-			m.matrix[i][j] -= other.matrix[i][j];
-	return (m);
+void DMatrix::randomize() {
+	static std::random_device rd;
+	static std::mt19937		  generator(rd());
+	float std_dev = std::sqrt(2.0f / static_cast<float>(cols));
+	std::normal_distribution<float> distribution(0.0f, std_dev);
+	std::generate(this->matrix.begin(), this->matrix.end(),
+				  [&]() { return distribution(generator); });
 }
 
-DMatrix DMatrix::operator*(const DMatrix &other) const {
-	if (this->cols != other.rows) return (DMatrix(this->rows, other.cols));
-	DMatrix m(this->rows, other.cols);
-	for (size_t i = 0; i < m.rows; i++) {
-		for (size_t j = 0; j < m.cols; j++) {
-			float sum = 0;
-			for (size_t k = 0; k < this->cols; k++)
-				sum += this->matrix[i][k] * other.matrix[k][j];
-			m.matrix[i][j] = sum;
-		}
-	}
-	return (m);
-}
-
-DMatrix &DMatrix::operator+=(const float n) {
-	for (size_t i = 0; i < this->rows; i++)
-		for (size_t j = 0; j < this->cols; j++) this->matrix[i][j] += n;
-	return (*this);
-}
-
-DMatrix &DMatrix::operator-=(const float n) {
-	for (size_t i = 0; i < this->rows; i++)
-		for (size_t j = 0; j < this->cols; j++) this->matrix[i][j] -= n;
-	return (*this);
-}
-
-DMatrix &DMatrix::operator*=(const float n) {
-	for (size_t i = 0; i < this->rows; i++)
-		for (size_t j = 0; j < this->cols; j++) this->matrix[i][j] *= n;
-	return (*this);
-}
-
-DMatrix DMatrix::operator+(const float n) const {
-	DMatrix m(*this);
-	for (size_t i = 0; i < m.rows; i++)
-		for (size_t j = 0; j < m.cols; j++) m.matrix[i][j] += n;
-	return (m);
-}
-
-DMatrix DMatrix::operator-(const float n) const {
-	DMatrix m(*this);
-	for (size_t i = 0; i < m.rows; i++)
-		for (size_t j = 0; j < m.cols; j++) m.matrix[i][j] -= n;
-	return (m);
-}
-
-DMatrix DMatrix::operator*(const float n) const {
-	DMatrix m(*this);
-	for (size_t i = 0; i < m.rows; i++)
-		for (size_t j = 0; j < m.cols; j++) m.matrix[i][j] *= n;
-	return (m);
-}
-
-std::vector<float> DMatrix::toVector(void) const {
-	std::vector<float> v;
-	for (size_t i = 0; i < this->rows; i++)
-		for (size_t j = 0; j < this->cols; j++) v.push_back(this->matrix[i][j]);
-	return (v);
-}
-
-void DMatrix::multiply(const DMatrix &other) {
-	if (this->cols != other.cols || this->rows != other.rows) return;
-	for (size_t i = 0; i < this->rows; i++)
-		for (size_t j = 0; j < this->cols; j++)
-			this->matrix[i][j] *= other.matrix[i][j];
-}
-
-DMatrix DMatrix::transpose(void) const {
-	DMatrix m(this->cols, this->rows);
-	for (size_t i = 0; i < m.rows; i++)
-		for (size_t j = 0; j < m.cols; j++) m.matrix[i][j] = this->matrix[j][i];
-	return (m);
-}
-
-float DMatrix::totalSum(void) const {
-	float sum = 0;
-	for (size_t i = 0; i < this->rows; i++)
-		for (size_t j = 0; j < this->cols; j++) sum += this->matrix[i][j];
-	return (sum);
-}
-
-void DMatrix::randomize(void) {
-	if (this->cols == 0) return;
-	float std_dev = std::sqrt(2.0 / static_cast<float>(this->cols));
-	std::random_device				rd;
-	std::mt19937					generator(rd());
-	std::normal_distribution<float> distribution(0.0, std_dev);
-	for (size_t i = 0; i < this->rows; i++)
-		for (size_t j = 0; j < this->cols; j++)
-			this->matrix[i][j] = distribution(generator);
-}
-
-void DMatrix::randomize(const size_t fan_in) {
-	if (fan_in == 0) return;
-	float			   std_dev = std::sqrt(2.0 / static_cast<float>(fan_in));
-	std::random_device rd;
-	std::mt19937	   generator(rd());
-	std::normal_distribution<float> distribution(0.0, std_dev);
-	for (size_t i = 0; i < this->rows; ++i)
-		for (size_t j = 0; j < this->cols; ++j)
-			this->matrix[i][j] = distribution(generator);
+void DMatrix::randomize(size_t fanIn) {
+	if (fanIn == 0) return;
+	static std::random_device rd;
+	static std::mt19937		  generator(rd());
+	float std_dev = std::sqrt(2.0f / static_cast<float>(fanIn));
+	std::normal_distribution<float> distribution(0.0f, std_dev);
+	std::generate(this->matrix.begin(), this->matrix.end(),
+				  [&]() { return distribution(generator); });
 }
 
 void DMatrix::map(float (*func)(float)) {
-	for (size_t i = 0; i < this->rows; i++)
-		for (size_t j = 0; j < this->cols; j++)
-			this->matrix[i][j] = func(this->matrix[i][j]);
+	std::transform(this->matrix.begin(), this->matrix.end(),
+				   this->matrix.begin(), func);
 }
 
-void DMatrix::setValue(const size_t row, const size_t col, const float val) {
-	const size_t accessY = row < this->rows ? row : this->rows;
-	const size_t accessX = col < this->cols ? col : this->cols;
-	this->matrix[accessY][accessX] = val;
+void DMatrix::multiply(const DMatrix &other) {
+	if (this->rows != other.rows || this->cols != other.cols)
+		throw std::invalid_argument("Matrix dimensions mismatch multiply()");
+	std::transform(this->matrix.begin(), this->matrix.end(),
+				   other.matrix.begin(), this->matrix.begin(),
+				   std::multiplies<float>());
 }
 
-float DMatrix::getValue(const size_t row, const size_t col) const {
-	const size_t accessY = row < this->rows ? row : this->rows;
-	const size_t accessX = col < this->cols ? col : this->cols;
-	return (this->matrix[accessY][accessX]);
+void DMatrix::setValue(size_t row, size_t col, float val) {
+	(*this)(row, col) = val;
 }
 
-size_t DMatrix::getRowLength(void) const {
+float DMatrix::getValue(size_t row, size_t col) const {
+	return ((*this)(row, col));
+}
+
+size_t DMatrix::getRowLength() const {
 	return (this->rows);
 }
 
-size_t DMatrix::getColLength(void) const {
+size_t DMatrix::getColLength() const {
 	return (this->cols);
 }
 
@@ -249,7 +224,7 @@ std::ostream &operator<<(std::ostream &out, const DMatrix &m) {
 	for (size_t i = 0; i < m.getRowLength(); i++) {
 		out << "Y" << i << " [";
 		for (size_t j = 0; j < m.getColLength(); j++) {
-			out << m[i][j];
+			out << m(i, j);
 			if (j + 1 < m.getColLength()) out << ", ";
 		}
 		out << "]" << std::endl;

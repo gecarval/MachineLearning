@@ -2,10 +2,9 @@
 #define NEURALNETWORK_HPP
 
 #include "./DMatrix.hpp"
-#include <algorithm>
+#include "./JsonParser.hpp"
 #include <cmath>
 #include <cstddef>
-#include <stdexcept>
 
 #ifndef NNLEARNRATE
 #define NNLEARNRATE 0.001f
