@@ -25,7 +25,7 @@ class NeuralNetwork {
 	static const int TOLERANCE = 10000;
 	static const int ALPHA = 100;
 
-	virtual ~NeuralNetwork();
+	~NeuralNetwork();
 	NeuralNetwork();
 	NeuralNetwork(const size_t numberOfInputsNodes,
 				  const size_t numberOfHiddenNodes,
@@ -50,6 +50,7 @@ class NeuralNetwork {
 	size_t		   getNumberOfOutputsNodes(void) const;
 	const DMatrix &getBiasAt(const size_t index) const;
 	const DMatrix &getWeigthAt(const size_t index) const;
+	NeuralNetwork  mutate(float (*func)(float)) const;
 
 	// Serialize NeuralNetwork to a JSON-like text file
 	static void serialize(const NeuralNetwork &nn,

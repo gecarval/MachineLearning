@@ -223,6 +223,15 @@ void NeuralNetwork::clampWeightsAndBiases() {
 	}
 }
 
+NeuralNetwork NeuralNetwork::mutate(float (*func)(float)) const {
+	NeuralNetwork m(*this);
+	for (size_t i = 0; i < m.hiddenLayerLen + 1; i++) {
+		m.weight[i].map(func);
+		m.bias[i].map(func);
+	}
+	return (m);
+}
+
 const DMatrix &NeuralNetwork::getBiasAt(const size_t index) const {
 	if (index > this->hiddenLayerLen) return (this->bias[this->hiddenLayerLen]);
 	return (this->bias[index]);
