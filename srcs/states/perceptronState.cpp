@@ -1,22 +1,8 @@
 #include "../../includes/Machine.hpp"
 
-// Constants for layout
-static const float	 thickness = 1.5f;
-static const Vector2 mockTest = Vector2Zero();
-
-// Position in top-right corner
-static const Vector2 perceptronOffset = (Vector2){windowWidth - 250.0f, 50.0f};
-static const Vector2 perceptronCenter =
-	(Vector2){10.0f, 10.0f} + perceptronOffset;
-static const float perceptronRadius = 15.0f;
-
-// Increased spacing for input/output lines
-static const Vector2 w0LineOffset = (Vector2){perceptronRadius * -4, 30};
-static const Vector2 w1LineOffset = (Vector2){perceptronRadius * -4, -30};
-static const Vector2 yLineOffset = (Vector2){perceptronRadius * 4, 0};
-static const Vector2 w0LinePos = perceptronCenter + w0LineOffset;
-static const Vector2 w1LinePos = perceptronCenter + w1LineOffset;
-static const Vector2 yLinePos = perceptronCenter + yLineOffset;
+// Points Draw Settings
+static const unsigned int pointRadius = 5;
+static const Color		  pointColor = BLACK;
 
 static void inputHandler(Machine &machine) {
 	const float	  walkSpeed = 20.0f / machine.camera.zoom;
@@ -73,6 +59,24 @@ static void renderImGui(Machine &machine) {
 }
 
 void renderPerceptron(Machine &machine) {
+	// Constants for layout
+	static const float	 thickness = 1.5f;
+	static const Vector2 mockTest = Vector2Zero();
+
+	// Position in top-right corner
+	const Vector2 perceptronOffset =
+		(Vector2){GetScreenWidth() - 250.0f, 50.0f};
+	const Vector2 perceptronCenter = (Vector2){10.0f, 10.0f} + perceptronOffset;
+	const float	  perceptronRadius = 15.0f;
+
+	// Increased spacing for input/output lines
+	const Vector2 w0LineOffset = (Vector2){perceptronRadius * -4, 30};
+	const Vector2 w1LineOffset = (Vector2){perceptronRadius * -4, -30};
+	const Vector2 yLineOffset = (Vector2){perceptronRadius * 4, 0};
+	const Vector2 w0LinePos = perceptronCenter + w0LineOffset;
+	const Vector2 w1LinePos = perceptronCenter + w1LineOffset;
+	const Vector2 yLinePos = perceptronCenter + yLineOffset;
+
 	// Get perceptron values
 	const float b = machine.brain.getBias();
 	const float bh = machine.brain.getBias() / 2;
@@ -135,7 +139,7 @@ void renderPerceptron(Machine &machine) {
 
 void DrawAxis(Machine &machine) {
 	static const float thick = 2.5f;
-	static const float x = 2000.0f;
+	const float		   x = GetScreenWidth() + GetScreenHeight();
 	const float		   m = machine.line.m;
 	const float		   d = machine.line.d;
 	const float		   yi = calcDeclive(m, -x, d);
@@ -154,7 +158,7 @@ void DrawAxis(Machine &machine) {
 }
 
 void DrawPoints(Machine &machine) {
-	for (size_t i = 0; i < initialPointAmount; i++) {
+	for (size_t i = 0; i < machine.points.size(); i++) {
 		const Vector2 center = machine.points[i];
 		const int	  desired = machine.desired[i];
 		const int	  guess = machine.brain.feedFoward(&center, 1);

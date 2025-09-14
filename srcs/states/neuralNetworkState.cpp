@@ -19,9 +19,11 @@ static void inputHandler(Machine &machine) {
 		}
 	}
 	if (IsKeyPressed(KEY_R)) {
-		machine.NN = NeuralNetwork(inputNodes, hiddenNodes, outputNodes,
-								   hiddenLayerLength);
-		machine.NN.setLearnRate(learningRate);
+		machine.NN = NeuralNetwork(machine.NN.getNumberOfInputsNodes(),
+								   machine.NN.getNumberOfHiddenNodes(),
+								   machine.NN.getNumberOfOutputsNodes(),
+								   machine.NN.getHiddenLayerLength());
+		machine.NN.setLearnRate(machine.NN.getLearnRate());
 	}
 	if (IsKeyPressed(KEY_D)) {
 		trainData.clear();
