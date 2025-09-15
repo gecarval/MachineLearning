@@ -18,6 +18,12 @@ static void inputHandler(Machine &machine) {
 			}
 		}
 	}
+	if (IsKeyPressed(KEY_UP)) {
+		machine.NN.setLearnRate(machine.NN.getLearnRate() * 10.0f);
+	}
+	if (IsKeyPressed(KEY_DOWN)) {
+		machine.NN.setLearnRate(machine.NN.getLearnRate() / 10.0f);
+	}
 	if (IsKeyPressed(KEY_R)) {
 		machine.NN = NeuralNetwork(machine.NN.getNumberOfInputsNodes(),
 								   machine.NN.getNumberOfHiddenNodes(),
@@ -199,7 +205,7 @@ void trainMachineNeuralNetwork(Machine &machine) {
 
 void renderNeuralNetwork(Machine &machine) {
 	// Neural Network Image Grid Map
-	static const float amount = 50.0f;
+	static const float amount = 20.0f;
 	const Vector2	   grid =
 		(Vector2){GetScreenWidth() / amount, GetScreenHeight() / amount};
 	const float cols = GetScreenWidth() / grid.x;
@@ -234,6 +240,8 @@ void renderNeuralNetwork(Machine &machine) {
 			DrawCircleV(center, radius, color2);
 		}
 	}
+	DrawText(TextFormat("learnRate: %5.10f", machine.NN.getLearnRate()), 20, 50,
+			 10, RED);
 }
 
 int handleNeuralNetworkState(Machine &machine) {

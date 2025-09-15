@@ -65,7 +65,7 @@ DMatrix DMatrix::operator*(const DMatrix &other) const {
 	if (this->cols != other.rows)
 		throw std::invalid_argument(
 			"Matrix dimensions incompatible for multiplication");
-	DMatrix result(rows, other.cols);
+	DMatrix result(this->rows, other.cols);
 	for (size_t i = 0; i < this->rows; i += BLOCK_SIZE) {
 		for (size_t j = 0; j < other.cols; j += BLOCK_SIZE) {
 			for (size_t k = 0; k < this->cols; k += BLOCK_SIZE) {
@@ -107,9 +107,6 @@ DMatrix &DMatrix::operator-=(const DMatrix &other) {
 }
 
 DMatrix &DMatrix::operator*=(const DMatrix &other) {
-	if (this->cols != other.rows)
-		throw std::invalid_argument(
-			"Matrix dimensions incompatible for multiplication");
 	*this = *this * other;
 	return (*this);
 }
