@@ -10,6 +10,22 @@
 #define NNLEARNRATE 0.001f
 #endif
 
+// Gradient Descent
+float clampGradient(const float x);
+float errorTolerance(const float x);
+// Activation Functions
+float Tanh(const float x);
+float Sigmoid(const float x);
+float Silu(const float x);
+float Relu(const float x);
+float Step(const float x);
+// Deactivation Functions
+float DTanh(const float x);
+float DSigmoid(const float x);
+float DSilu(const float x);
+float DRelu(const float x);
+float DStep(const float x);
+
 class NeuralNetwork {
   private:
 	float	 learnRate;
@@ -19,9 +35,13 @@ class NeuralNetwork {
 	size_t	 hiddenLayerLen;
 	DMatrix *weight;
 	DMatrix *bias;
+	float (*HiddenActivate)(float);
+	float (*HiddenDeactivate)(float);
+	float (*OutputActivate)(float);
+	float (*OutputDeactivate)(float);
 
   public:
-	static const int CLAMP = 100000;
+	static const int CLAMP = 700;
 	static const int TOLERANCE = 10000;
 	static const int ALPHA = 100;
 
@@ -42,6 +62,10 @@ class NeuralNetwork {
 	void			   train(const DMatrix &inputArray, const DMatrix &desired);
 	void			   clampWeightsAndBiases();
 
+	void		   setHiddenLayerActivation(float (*Activate)(float),
+											float (*Deactivate)(float));
+	void		   setOutputLayerActivation(float (*Activate)(float),
+											float (*Deactivate)(float));
 	void		   setLearnRate(const float newLearnRate);
 	float		   getLearnRate(void) const;
 	size_t		   getHiddenLayerLength(void) const;

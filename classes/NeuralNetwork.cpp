@@ -1,45 +1,89 @@
 #include "NeuralNetwork.hpp"
 
-static float clampGradient(const float x) {
-	static const float max = 1.0f;
+float clampGradient(const float x) {
+	static const float max = 100.0f;
 	if (std::isnan(x) || std::isinf(x)) return (0);
 	return (std::abs(x) < max ? x : x > 0 ? max : -max);
 }
 
-static float errorTolerance(const float x) {
+float errorTolerance(const float x) {
 	static const float tol = 1.0f / NeuralNetwork::TOLERANCE;
 	if (std::isnan(x) || std::isinf(x)) return (1.0f);
 	if (std::abs(x) < tol) return (0);
 	return (x);
 }
 
-static float sigmoid(const float z) {
-	const float max = 10.0f;
-	const float x = std::abs(z) < max ? z : z > 0 ? max : -max;
-	const float y = 1.0f / (1.0f + std::exp(-x));
-	if (std::isnan(y) || std::isinf(y)) return (0.0f);
-	return (y);
+float Tanh(const float x) {
+	const float max = 5.0f;
+	const float y = std::abs(x) < max ? x : x > 0 ? max : -max;
+	const float z = (2.0f / (1.0f + std::exp(-2 * y))) - 1.0f;
+	if (std::isnan(z) || std::isinf(z)) return (0.0f);
+	return (z);
 }
 
-float relu(const float x) {
+float Sigmoid(const float x) {
+	const float max = 10.0f;
+	const float y = std::abs(x) < max ? x : x > 0 ? max : -max;
+	const float z = 1.0f / (1.0f + std::exp(-y));
+	if (std::isnan(z) || std::isinf(z)) return (0.0f);
+	return (z);
+}
+
+float Silu(const float x) {
+	const float max = 50.0f;
+	const float y = std::abs(x) < max ? x : x > 0 ? max : -max;
+	const float z = y / (1.0f + std::exp(-y));
+	if (std::isnan(z) || std::isinf(z)) return 0.0f;
+	return z;
+}
+
+float Relu(const float x) {
 	static const float a = 1.0f / NeuralNetwork::ALPHA;
+	if (std::isnan(x) || std::isinf(x)) return (0.0f);
 	return (x < 0 ? x * a : x);
 }
 
-static float dSigmoid(const float y) {
-	if (std::isnan(y) || std::isinf(y)) return (0.0f);
-	return (y * (1.0f - y));
+float Step(const float x) {
+	if (std::isnan(x) || std::isinf(x)) return 0.0f;
+	return (x >= 0.0f) ? 1.0f : 0.0f;
 }
 
-float dRelu(const float y) {
+float DTanh(const float x) {
+	if (std::isnan(x) || std::isinf(x)) return (0.0f);
+	const float y = Tanh(x);
+	return (1.0f - (y * y));
+}
+
+float DSigmoid(const float x) {
+	if (std::isnan(x) || std::isinf(x)) return (0.0f);
+	return (x * (1.0f - x));
+}
+
+float DSilu(const float x) {
+	const float max = 50.0f;
+	if (std::abs(x) >= max) return (x > 0.0f) ? 1.0f : 0.0f;
+	const float sigma = 1.0f / (1.0f + std::exp(-x));
+	const float z = sigma * (1.0f + x * (1.0f - sigma));
+	if (std::isnan(z) || std::isinf(z)) return 0.0f;
+	return z;
+}
+
+float DRelu(const float x) {
 	static const float a = 1.0f / NeuralNetwork::ALPHA;
-	return (y >= 0 ? 1.0f : a);
+	if (std::isnan(x) || std::isinf(x)) return (0.0f);
+	return (x < 0 ? a : 1.0f);
+}
+
+float DStep(const float x) {
+	if (std::isnan(x) || std::isinf(x)) return 0.0f;
+	return (0);
 }
 
 NeuralNetwork::NeuralNetwork()
 	: learnRate(NNLEARNRATE), numberOfInputsNodes(2), numberOfHiddenNodes(2),
 	  numberOfOutputNodes(1), hiddenLayerLen(1), weight(new DMatrix[2]),
-	  bias(new DMatrix[2]) {
+	  bias(new DMatrix[2]), HiddenActivate(Sigmoid), HiddenDeactivate(DSigmoid),
+	  OutputActivate(Sigmoid), OutputDeactivate(DSigmoid) {
 	this->weight[0] =
 		DMatrix(this->numberOfHiddenNodes, this->numberOfInputsNodes);
 	this->weight[1] =
@@ -56,7 +100,9 @@ NeuralNetwork::NeuralNetwork(const size_t numberOfInputsNodes,
 	: learnRate(NNLEARNRATE), numberOfInputsNodes(numberOfInputsNodes),
 	  numberOfHiddenNodes(numberOfHiddenNodes),
 	  numberOfOutputNodes(numberOfOutputNodes), hiddenLayerLen(1),
-	  weight(new DMatrix[2]), bias(new DMatrix[2]) {
+	  weight(new DMatrix[2]), bias(new DMatrix[2]), HiddenActivate(Sigmoid),
+	  HiddenDeactivate(DSigmoid), OutputActivate(Sigmoid),
+	  OutputDeactivate(DSigmoid) {
 	this->weight[0] =
 		DMatrix(this->numberOfHiddenNodes, this->numberOfInputsNodes);
 	this->weight[1] =
@@ -76,7 +122,9 @@ NeuralNetwork::NeuralNetwork(const size_t numberOfInputsNodes,
 	  numberOfOutputNodes(numberOfOutputNodes),
 	  hiddenLayerLen(hiddenLayerLength),
 	  weight(new DMatrix[hiddenLayerLength + 1]),
-	  bias(new DMatrix[hiddenLayerLength + 1]) {
+	  bias(new DMatrix[hiddenLayerLength + 1]), HiddenActivate(Sigmoid),
+	  HiddenDeactivate(DSigmoid), OutputActivate(Sigmoid),
+	  OutputDeactivate(DSigmoid) {
 	this->weight[0] =
 		DMatrix(this->numberOfHiddenNodes, this->numberOfInputsNodes);
 	this->weight[0].randomize(this->numberOfInputsNodes);
@@ -121,6 +169,10 @@ NeuralNetwork &NeuralNetwork::operator=(const NeuralNetwork &other) {
 		this->bias = new DMatrix[this->hiddenLayerLen + 1];
 		for (size_t i = 0; i < this->hiddenLayerLen + 1; i++)
 			this->bias[i] = other.bias[i];
+		this->HiddenActivate = other.HiddenActivate;
+		this->HiddenDeactivate = other.HiddenDeactivate;
+		this->OutputActivate = other.OutputActivate;
+		this->OutputDeactivate = other.OutputDeactivate;
 	}
 	return (*this);
 }
@@ -134,13 +186,14 @@ NeuralNetwork::feedFoward(const std::vector<float> &input) const {
 
 DMatrix NeuralNetwork::feedFoward(const DMatrix &input) const {
 	DMatrix res(input);
-	for (size_t i = 0; i < this->hiddenLayerLen + 1; i++) {
+	for (size_t i = 0; i <= this->hiddenLayerLen; i++) {
 		res = this->weight[i] * res;
 		res += this->bias[i];
-		if (i == this->hiddenLayerLen)
-			res.map(sigmoid);
-		else
-			res.map(sigmoid);
+		if (i == this->hiddenLayerLen) {
+			res.map(this->OutputActivate);
+		} else {
+			res.map(this->HiddenActivate);
+		}
 	}
 	return (res);
 }
@@ -148,23 +201,24 @@ DMatrix NeuralNetwork::feedFoward(const DMatrix &input) const {
 void NeuralNetwork::train(const DMatrix &inputArray, const DMatrix &desired) {
 	std::vector<DMatrix> outputs(this->hiddenLayerLen + 1);
 	DMatrix				 res(inputArray);
-	for (size_t i = 0; i < this->hiddenLayerLen + 1; i++) {
+	for (size_t i = 0; i <= this->hiddenLayerLen; i++) {
 		res = this->weight[i] * res;
 		res += this->bias[i];
 		if (i == this->hiddenLayerLen) {
-			res.map(sigmoid);
+			res.map(this->OutputActivate);
 		} else {
-			res.map(sigmoid);
+			res.map(this->HiddenActivate);
 		}
 		outputs[i] = res;
 	}
 	DMatrix layerError(desired - outputs[this->hiddenLayerLen]);
-	for (size_t i = this->hiddenLayerLen; i < this->hiddenLayerLen + 1; i--) {
+	for (size_t i = this->hiddenLayerLen; i <= this->hiddenLayerLen; i--) {
 		DMatrix gradient = outputs[i];
-		if (i == this->hiddenLayerLen)
-			gradient.map(dSigmoid);
-		else
-			gradient.map(dSigmoid);
+		if (i == this->hiddenLayerLen) {
+			gradient.map(this->OutputDeactivate);
+		} else {
+			gradient.map(this->HiddenDeactivate);
+		}
 		gradient.multiply(layerError);
 		gradient.map(errorTolerance);
 		gradient *= this->learnRate;
@@ -183,13 +237,12 @@ void NeuralNetwork::train(const DMatrix &inputArray, const DMatrix &desired) {
 
 void NeuralNetwork::clampWeightsAndBiases() {
 	for (size_t i = 0; i < hiddenLayerLen + 1; ++i) {
-		// Determine fan_in and fan_out for the current layer
 		const size_t fan_in =
 			(i == 0) ? numberOfInputsNodes : numberOfHiddenNodes;
 		const size_t fan_out =
 			(i == hiddenLayerLen) ? numberOfOutputNodes : numberOfHiddenNodes;
 		const float weight_clamp = NeuralNetwork::CLAMP;
-		const float bias_clamp = fan_in * fan_out;
+		const float bias_clamp = fan_in + fan_out;
 		// Clamp weights
 		const size_t weight_rows = weight[i].getRowLength();
 		const size_t weight_cols = weight[i].getColLength();
@@ -199,7 +252,7 @@ void NeuralNetwork::clampWeightsAndBiases() {
 				if (std::isnan(val) || std::isinf(val)) {
 					val = 0;
 				} else if (std::abs(val) > weight_clamp) {
-					val = val / (weight_clamp * 0.1f);
+					val = val < 0 ? -weight_clamp : weight_clamp;
 				}
 			}
 		}
@@ -211,7 +264,7 @@ void NeuralNetwork::clampWeightsAndBiases() {
 				if (std::isnan(val) || std::isinf(val)) {
 					val = 0;
 				} else if (std::abs(val) > bias_clamp) {
-					val = val / (bias_clamp * 0.1f);
+					val = val < 0 ? -bias_clamp : bias_clamp;
 				}
 			}
 		}
@@ -236,6 +289,18 @@ const DMatrix &NeuralNetwork::getWeigthAt(const size_t index) const {
 	if (index > this->hiddenLayerLen)
 		return (this->weight[this->hiddenLayerLen]);
 	return (this->weight[index]);
+}
+
+void NeuralNetwork::setHiddenLayerActivation(float (*Activate)(float),
+											 float (*Deactivate)(float)) {
+	this->HiddenActivate = Activate;
+	this->HiddenDeactivate = Deactivate;
+}
+
+void NeuralNetwork::setOutputLayerActivation(float (*Activate)(float),
+											 float (*Deactivate)(float)) {
+	this->OutputActivate = Activate;
+	this->OutputDeactivate = Deactivate;
 }
 
 void NeuralNetwork::setLearnRate(const float newLearnRate) {
