@@ -25,11 +25,12 @@ static void inputHandler(Machine &machine) {
 		machine.NN.setLearnRate(machine.NN.getLearnRate() / 10.0f);
 	}
 	if (IsKeyPressed(KEY_R)) {
+		const float ln = machine.NN.getLearnRate();
 		machine.NN = NeuralNetwork(machine.NN.getNumberOfInputsNodes(),
 								   machine.NN.getNumberOfHiddenNodes(),
 								   machine.NN.getNumberOfOutputsNodes(),
 								   machine.NN.getHiddenLayerLength());
-		machine.NN.setLearnRate(machine.NN.getLearnRate());
+		machine.NN.setLearnRate(ln);
 	}
 	if (IsKeyPressed(KEY_D)) {
 		trainData.clear();
