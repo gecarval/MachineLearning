@@ -1,6 +1,8 @@
 #include "../../includes/Machine.hpp"
 
 // Neural Network TrainData
+Camera3D camera = {(Vector3){12.0f, 17.0f, 12.0f}, (Vector3){0.0f, 7.0f, 0.0f},
+				   (Vector3){0.0f, 1.0f, 0.0f}, 45.0f, CAMERA_PERSPECTIVE};
 std::vector<std::vector<float>> trainData;
 std::vector<std::vector<float>> trainResult;
 static const int				trainLen = 2;
@@ -204,28 +206,45 @@ void trainMachineNeuralNetwork(Machine &machine) {
 	machine.NN.train(train, res);
 }
 
-void renderNeuralNetwork(Machine &machine) {
-	// Neural Network Image Grid Map
-	static const float amount = 20.0f;
-	const Vector2	   grid =
-		(Vector2){GetScreenWidth() / amount, GetScreenHeight() / amount};
-	const float cols = GetScreenWidth() / grid.x;
-	const float rows = (GetScreenHeight() / 2.0f) / grid.y;
+RenderTexture2D tmp;
 
-	for (int i = 0; i <= rows + 1; i++) {
-		for (int j = 0; j < cols; j++) {
-			const float				 x0 = j / cols;
-			const float				 x1 = i / rows;
-			const float				 x = j * grid.x;
-			const float				 y = i * grid.y + GetScreenHeight() / 2.0f;
-			const Vector2			 gridPos = (Vector2){x, y};
-			const std::vector<float> input = {x0, x1};
+void renderMap(Machine &machine) {
+	// Neural Network Image Grid Map
+	static bool		   isTmpLoaded = false;
+	static const float size = 25.0f;
+
+	if (!isTmpLoaded) {
+		tmp = LoadRenderTexture(size, size);
+		isTmpLoaded = true;
+	}
+	BeginTextureMode(tmp);
+	ClearBackground(WHITE);
+	for (int y = 0; y < size; y++) {
+		for (int x = 0; x < size; x++) {
+			const std::vector<float> input = {x / size, y / size};
 			const std::vector<float> output = machine.NN.feedFoward(input);
 			const unsigned char		 alpha = Remap(output[0], 0, 1, 0, 255);
 			const Color gridColor = (Color){alpha, alpha, alpha, 255};
-			DrawRectangleV(gridPos, grid, gridColor);
+			DrawPixel(x, y, gridColor);
 		}
 	}
+	EndTextureMode();
+}
+
+void renderPoints(Machine &machine) {
+	static const Vector3 mapPos = (Vector3){-2, 0, -2};
+	static const Vector3 cubPos = (Vector3){0, 2, 0};
+	static const Vector3 mapSize = (Vector3){4, 4, 4};
+	const Image			 mapImage = LoadImageFromTexture(tmp.texture);
+	const Mesh			 mapMesh = GenMeshHeightmap(mapImage, mapSize);
+	const Model			 mapModel = LoadModelFromMesh(mapMesh);
+
+	mapModel.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = tmp.texture;
+	BeginMode3D(camera);
+	DrawModel(mapModel, mapPos, 1.0f, BLUE);
+	DrawGrid(5, 1.0f);
+	DrawCubeWires(cubPos, 4, 4, 4, RED);
+	EndMode3D();
 	for (size_t i = 0; i < trainData.size(); i++) {
 		static const float radius = 2.0f;
 		static const Color color1 = RED;
@@ -242,7 +261,9 @@ void renderNeuralNetwork(Machine &machine) {
 		}
 	}
 	DrawText(TextFormat("learnRate: %5.10f", machine.NN.getLearnRate()), 20, 50,
-			 10, RED);
+			 10, BLACK);
+	DrawTexture(tmp.texture, 0, GetScreenHeight() / 2.0 + tmp.texture.height,
+				WHITE);
 }
 
 int handleNeuralNetworkState(Machine &machine) {
@@ -255,9 +276,11 @@ int handleNeuralNetworkState(Machine &machine) {
 			trainMachineNeuralNetwork(machine);
 		}
 	}
+	UpdateCamera(&camera, CAMERA_ORBITAL);
+	renderMap(machine);
 	BeginDrawing();
 	ClearBackground(BLACK);
-	renderNeuralNetwork(machine);
+	renderPoints(machine);
 	DrawNeuralNetwork(machine.NN, GetScreenWidth(), GetScreenHeight() / 2.0f);
 	DrawFPS(drawFpsPos.x, drawFpsPos.y);
 	EndDrawing();

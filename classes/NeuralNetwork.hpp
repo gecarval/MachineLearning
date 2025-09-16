@@ -41,7 +41,7 @@ class NeuralNetwork {
 	float (*OutputDeactivate)(float);
 
   public:
-	static const int CLAMP = 700;
+	static const int CLAMP = 10000;
 	static const int TOLERANCE = 10000;
 	static const int ALPHA = 100;
 

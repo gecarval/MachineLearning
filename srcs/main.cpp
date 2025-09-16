@@ -8,9 +8,9 @@ static const unsigned int frameLimit = 120;
 
 // Neural Network Settings
 static const unsigned int inputNodes = 2;
-static const unsigned int hiddenNodes = 2;
+static const unsigned int hiddenNodes = 32;
 static const unsigned int outputNodes = 1;
-static const unsigned int hiddenLayerLength = 1;
+static const unsigned int hiddenLayerLength = 3;
 static const float		  learningRate = 0.0001f;
 
 // Line Settings

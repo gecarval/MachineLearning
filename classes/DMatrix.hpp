@@ -47,6 +47,8 @@ class DMatrix {
 	void			   randomize(size_t fanIn);
 	void			   map(float (*func)(float));
 	void			   multiply(const DMatrix &other);
+	void			   pow(const float exp);
+	void			   powneg(const float exp);
 	void			   setValue(size_t row, size_t col, float val);
 	float			   getValue(size_t row, size_t col) const;
 	size_t			   getRowLength() const;
