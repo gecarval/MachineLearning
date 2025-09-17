@@ -16,14 +16,16 @@ float errorTolerance(const float x);
 // Activation Functions
 float Tanh(const float x);
 float Sigmoid(const float x);
-float Silu(const float x);
-float Relu(const float x);
+float SiLU(const float x);
+float ReLU(const float x);
+float LeakyReLU(const float x);
 float Step(const float x);
 // Deactivation Functions
 float DTanh(const float x);
 float DSigmoid(const float x);
-float DSilu(const float x);
-float DRelu(const float x);
+float DSiLU(const float x);
+float DReLU(const float x);
+float DLeakyReLU(const float x);
 float DStep(const float x);
 
 class NeuralNetwork {

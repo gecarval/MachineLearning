@@ -2,20 +2,20 @@
 
 float clampGradient(const float x) {
 	static const float max = 100.0f;
-	if (std::isnan(x) || std::isinf(x)) return (0);
-	return (std::abs(x) < max ? x : x > 0 ? max : -max);
+	if (std::isnan(x) || std::isinf(x)) return (0.0f);
+	return (std::abs(x) < max ? x : x > 0.0f ? max : -max);
 }
 
 float errorTolerance(const float x) {
 	static const float tol = 1.0f / NeuralNetwork::TOLERANCE;
 	if (std::isnan(x) || std::isinf(x)) return (1.0f);
-	if (std::abs(x) < tol) return (0);
+	if (std::abs(x) < tol) return (0.0f);
 	return (x);
 }
 
 float Tanh(const float x) {
 	const float max = 5.0f;
-	const float y = std::abs(x) < max ? x : x > 0 ? max : -max;
+	const float y = std::abs(x) < max ? x : x > 0.0f ? max : -max;
 	const float z = (2.0f / (1.0f + std::exp(-2 * y))) - 1.0f;
 	if (std::isnan(z) || std::isinf(z)) return (0.0f);
 	return (z);
@@ -23,24 +23,29 @@ float Tanh(const float x) {
 
 float Sigmoid(const float x) {
 	const float max = 10.0f;
-	const float y = std::abs(x) < max ? x : x > 0 ? max : -max;
+	const float y = std::abs(x) < max ? x : x > 0.0f ? max : -max;
 	const float z = 1.0f / (1.0f + std::exp(-y));
 	if (std::isnan(z) || std::isinf(z)) return (0.0f);
 	return (z);
 }
 
-float Silu(const float x) {
+float SiLU(const float x) {
 	const float max = 50.0f;
-	const float y = std::abs(x) < max ? x : x > 0 ? max : -max;
+	const float y = std::abs(x) < max ? x : x > 0.0f ? max : -max;
 	const float z = y / (1.0f + std::exp(-y));
 	if (std::isnan(z) || std::isinf(z)) return 0.0f;
 	return z;
 }
 
-float Relu(const float x) {
+float ReLU(const float x) {
+	if (std::isnan(x) || std::isinf(x)) return (0.0f);
+	return (x < 0.0f ? 0.0f : x);
+}
+
+float LeakyReLU(const float x) {
 	static const float a = 1.0f / NeuralNetwork::ALPHA;
 	if (std::isnan(x) || std::isinf(x)) return (0.0f);
-	return (x < 0 ? x * a : x);
+	return (x < 0.0f ? x * a : x);
 }
 
 float Step(const float x) {
@@ -59,24 +64,29 @@ float DSigmoid(const float x) {
 	return (x * (1.0f - x));
 }
 
-float DSilu(const float x) {
+float DSiLU(const float x) {
 	const float max = 50.0f;
-	if (std::abs(x) >= max) return (x > 0.0f) ? 1.0f : 0.0f;
-	const float sigma = 1.0f / (1.0f + std::exp(-x));
-	const float z = sigma * (1.0f + x * (1.0f - sigma));
+	const float y = std::abs(x) < max ? x : x > 0.0f ? max : -max;
+	const float sigma = 1.0f / (1.0f + std::exp(-y));
+	const float z = y * sigma * (1.0f - sigma) + sigma;
 	if (std::isnan(z) || std::isinf(z)) return 0.0f;
-	return z;
+	return (z);
 }
 
-float DRelu(const float x) {
+float DReLU(const float x) {
+	if (std::isnan(x) || std::isinf(x)) return (0.0f);
+	return (x > 0.0f ? 1.0f : 0.0f);
+}
+
+float DLeakyReLU(const float x) {
 	static const float a = 1.0f / NeuralNetwork::ALPHA;
 	if (std::isnan(x) || std::isinf(x)) return (0.0f);
-	return (x < 0 ? a : 1.0f);
+	return (x > 0.0f ? 1.0f : a);
 }
 
 float DStep(const float x) {
 	if (std::isnan(x) || std::isinf(x)) return 0.0f;
-	return (0);
+	return (x >= 0.0f) ? 1.0f : 0.0f;
 }
 
 NeuralNetwork::NeuralNetwork()
