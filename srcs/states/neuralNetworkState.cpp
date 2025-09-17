@@ -1,5 +1,12 @@
 #include "../../includes/Machine.hpp"
 
+// Neural Network Image Grid Map
+static RenderTexture2D tmp;
+static bool			   isTmpLoaded = false;
+static const float	   factor = 4.0f;
+static const float	   size = 25.0f * factor;
+static const float	   imageScale = 15.0f / factor;
+
 // Neural Network TrainData
 Camera3D camera = {(Vector3){12.0f, 17.0f, 12.0f}, (Vector3){0.0f, 7.0f, 0.0f},
 				   (Vector3){0.0f, 1.0f, 0.0f}, 45.0f, CAMERA_PERSPECTIVE};
@@ -7,6 +14,32 @@ std::vector<std::vector<float>> trainData;
 std::vector<std::vector<float>> trainResult;
 static const int				trainLen = 2;
 static const int				resLen = 1;
+
+static void onMouseClick(const unsigned int buttonCode) {
+	const Vector2 &mousePos = GetMousePosition();
+	const Vector2  padding = {0, (GetScreenHeight() / 2.0f)};
+	const Vector2  paddingEnd =
+		(Vector2){padding.x + (tmp.texture.width * imageScale),
+				  padding.y + (tmp.texture.height * imageScale)};
+	if (mousePos.x > padding.x && mousePos.x < paddingEnd.x &&
+		mousePos.y > padding.y && mousePos.y < paddingEnd.y) {
+		const float mouseX =
+			Remap(mousePos.x, padding.x, paddingEnd.x, 0.0f, 1.0f);
+		const float mouseY =
+			Remap(mousePos.y, padding.y, paddingEnd.y, 0.0f, 1.0f);
+		std::vector<float> data;
+		std::vector<float> res;
+		data.push_back(mouseX);
+		data.push_back(mouseY);
+		if (MOUSE_BUTTON_LEFT == buttonCode) {
+			res.push_back(1.0f);
+		} else {
+			res.push_back(0.0f);
+		}
+		trainData.push_back(data);
+		trainResult.push_back(res);
+	}
+}
 
 static void inputHandler(Machine &machine) {
 	if (!IsWindowFocused()) {
@@ -33,6 +66,8 @@ static void inputHandler(Machine &machine) {
 								   machine.NN.getNumberOfOutputsNodes(),
 								   machine.NN.getHiddenLayerLength());
 		machine.NN.setLearnRate(ln);
+		machine.NN.setHiddenLayerActivation(LeakyReLU, DLeakyReLU);
+		machine.NN.setOutputLayerActivation(Sigmoid, DSigmoid);
 	}
 	if (IsKeyPressed(KEY_D)) {
 		trainData.clear();
@@ -49,37 +84,11 @@ static void inputHandler(Machine &machine) {
 			std::cerr << error.what() << std::endl;
 		}
 	}
-	if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-		const Vector2 &mousePos = GetMousePosition();
-		if (mousePos.y > GetScreenHeight() / 2.0f) {
-			const float mouseX =
-				Remap(mousePos.x, 0, GetScreenWidth(), 0.0f, 1.0f);
-			const float mouseY = Remap(mousePos.y, GetScreenHeight() / 2.0f,
-									   GetScreenHeight(), 0.0f, 1.0f);
-			std::vector<float> data;
-			std::vector<float> res;
-			data.push_back(mouseX);
-			data.push_back(mouseY);
-			res.push_back(1.0f);
-			trainData.push_back(data);
-			trainResult.push_back(res);
-		}
+	if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+		onMouseClick(MOUSE_BUTTON_LEFT);
 	}
-	if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
-		const Vector2 &mousePos = GetMousePosition();
-		if (mousePos.y > GetScreenHeight() / 2.0f) {
-			const float mouseX =
-				Remap(mousePos.x, 0, GetScreenWidth(), 0.0f, 1.0f);
-			const float mouseY = Remap(mousePos.y, GetScreenHeight() / 2.0f,
-									   GetScreenHeight(), 0.0f, 1.0f);
-			std::vector<float> data;
-			std::vector<float> res;
-			data.push_back(mouseX);
-			data.push_back(mouseY);
-			res.push_back(0.0f);
-			trainData.push_back(data);
-			trainResult.push_back(res);
-		}
+	if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+		onMouseClick(MOUSE_BUTTON_RIGHT);
 	}
 }
 
@@ -206,13 +215,7 @@ void trainMachineNeuralNetwork(Machine &machine) {
 	machine.NN.train(train, res);
 }
 
-RenderTexture2D tmp;
-
 void renderMap(Machine &machine) {
-	// Neural Network Image Grid Map
-	static bool		   isTmpLoaded = false;
-	static const float size = 25.0f;
-
 	if (!isTmpLoaded) {
 		tmp = LoadRenderTexture(size, size);
 		isTmpLoaded = true;
@@ -221,7 +224,8 @@ void renderMap(Machine &machine) {
 	ClearBackground(WHITE);
 	for (int y = 0; y < size; y++) {
 		for (int x = 0; x < size; x++) {
-			const std::vector<float> input = {x / size, y / size};
+			const std::vector<float> input = {Remap(x, 0, size, 0, 1.0f),
+											  Remap(y, 0, size, 1.0f, 0)};
 			const std::vector<float> output = machine.NN.feedFoward(input);
 			const unsigned char		 alpha = Remap(output[0], 0, 1, 0, 255);
 			const Color gridColor = (Color){alpha, alpha, alpha, 255};
@@ -232,6 +236,10 @@ void renderMap(Machine &machine) {
 }
 
 void renderPoints(Machine &machine) {
+	const Vector2 padding = {0, (GetScreenHeight() / 2.0f)};
+	const Vector2 paddingEnd =
+		(Vector2){padding.x + (tmp.texture.width * imageScale),
+				  padding.y + (tmp.texture.height * imageScale)};
 	static const Vector3 mapPos = (Vector3){-2, 0, -2};
 	static const Vector3 cubPos = (Vector3){0, 2, 0};
 	static const Vector3 mapSize = (Vector3){4, 4, 4};
@@ -245,14 +253,16 @@ void renderPoints(Machine &machine) {
 	DrawGrid(5, 1.0f);
 	DrawCubeWires(cubPos, 4, 4, 4, RED);
 	EndMode3D();
+	DrawTextureEx(tmp.texture, (Vector2){0, GetScreenHeight() / 2.0f}, 0,
+				  imageScale, WHITE);
 	for (size_t i = 0; i < trainData.size(); i++) {
 		static const float radius = 2.0f;
 		static const Color color1 = RED;
 		static const Color color2 = GREEN;
 		const float		   pointX =
-			Remap(trainData[i][0], 0.0f, 1.0f, 0, GetScreenWidth());
-		const float	  pointY = Remap(trainData[i][1], 0.0f, 1.0f,
-									 GetScreenHeight() / 2.0f, GetScreenHeight());
+			Remap(trainData[i][0], 0.0f, 1.0f, padding.x, paddingEnd.x);
+		const float pointY =
+			Remap(trainData[i][1], 0.0f, 1.0f, padding.y, paddingEnd.y);
 		const Vector2 center = {pointX, pointY};
 		if (trainResult[i][0] > 0.0f) {
 			DrawCircleV(center, radius, color1);
@@ -261,9 +271,9 @@ void renderPoints(Machine &machine) {
 		}
 	}
 	DrawText(TextFormat("learnRate: %5.10f", machine.NN.getLearnRate()), 20, 50,
-			 10, BLACK);
-	DrawTexture(tmp.texture, 0, GetScreenHeight() / 2.0 + tmp.texture.height,
-				WHITE);
+			 10, WHITE);
+	UnloadImage(mapImage);
+	UnloadModel(mapModel);
 }
 
 int handleNeuralNetworkState(Machine &machine) {
