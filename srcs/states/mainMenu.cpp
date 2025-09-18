@@ -15,7 +15,7 @@ void renderMainMenu(Machine &machine) {
 	const int	  subTitlePosOffset = subTitleFontSize * sizeof(subTitle) / 3;
 	const Vector2 subTitlePos =
 		(Vector2){screenCenter.x - subTitlePosOffset, screenCenter.y};
-	ClearBackground(backGroundColor);
+	ClearBackground(RAYWHITE);
 	DrawText(title, titlePos.x, titlePos.y, titleFontSize, DARKGREEN);
 	DrawText(subTitle, subTitlePos.x, subTitlePos.y, subTitleFontSize,
 			 DARKGREEN);

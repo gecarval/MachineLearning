@@ -175,7 +175,7 @@ void DrawPoints(Machine &machine) {
 
 void renderCartesianPlane(Machine &machine) {
 	BeginMode2D(machine.camera);
-	ClearBackground(backGroundColor);
+	ClearBackground(RAYWHITE);
 	DrawPoints(machine);
 	DrawAxis(machine);
 	EndMode2D();

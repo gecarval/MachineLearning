@@ -28,7 +28,6 @@ struct Machine {
 
 // Universal Window Settings
 static const Vector2 drawFpsPos = (Vector2){10.0f, 10.0f};
-static const Color	 backGroundColor = RAYWHITE;
 
 // Functions
 float calcDeclive(float m, float x, float d);

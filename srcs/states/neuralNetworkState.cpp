@@ -3,7 +3,7 @@
 // Neural Network Image Grid Map
 static RenderTexture2D tmp;
 static bool			   isTmpLoaded = false;
-static const float	   factor = 4.0f;
+static const float	   factor = 1.0f;
 static const float	   size = 25.0f * factor;
 static const float	   imageScale = 15.0f / factor;
 
@@ -66,7 +66,7 @@ static void inputHandler(Machine &machine) {
 								   machine.NN.getNumberOfOutputsNodes(),
 								   machine.NN.getHiddenLayerLength());
 		machine.NN.setLearnRate(ln);
-		machine.NN.setHiddenLayerActivation(LeakyReLU, DLeakyReLU);
+		machine.NN.setHiddenLayerActivation(SiLU, DSiLU);
 		machine.NN.setOutputLayerActivation(Sigmoid, DSigmoid);
 	}
 	if (IsKeyPressed(KEY_D)) {
@@ -221,7 +221,6 @@ void renderMap(Machine &machine) {
 		isTmpLoaded = true;
 	}
 	BeginTextureMode(tmp);
-	ClearBackground(WHITE);
 	for (int y = 0; y < size; y++) {
 		for (int x = 0; x < size; x++) {
 			const std::vector<float> input = {Remap(x, 0, size, 0, 1.0f),
