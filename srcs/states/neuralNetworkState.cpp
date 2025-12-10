@@ -47,7 +47,7 @@ static void inputHandler(Machine &machine) {
 	}
 	if (IsKeyDown(KEY_LEFT_CONTROL)) {
 		if (IsKeyPressed(KEY_Z)) {
-			if (!trainData.empty()) {
+			if (!trainData.empty() && !trainResult.empty()) {
 				trainData.pop_back();
 				trainResult.pop_back();
 			}
