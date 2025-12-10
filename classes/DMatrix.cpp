@@ -8,9 +8,7 @@ DMatrix::DMatrix(size_t row, size_t col)
 }
 
 DMatrix::DMatrix(const std::vector<float> &vectorArray)
-	: rows(vectorArray.size()), cols(1) {
-	this->matrix.reserve(this->rows * this->cols);
-	this->matrix = vectorArray;
+	: rows(vectorArray.size()), cols(1), matrix(vectorArray) {
 }
 
 DMatrix::DMatrix(const DMatrix &other)
