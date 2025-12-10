@@ -30,20 +30,23 @@ DMatrix &DMatrix::operator=(const DMatrix &other) {
 }
 
 float &DMatrix::operator()(size_t row, size_t col) {
-	if (row >= rows || col >= cols)
+	if (row >= rows || col >= cols) {
 		throw std::out_of_range("Matrix index out of bounds");
+	}
 	return (this->matrix[row * this->cols + col]);
 }
 
 const float &DMatrix::operator()(size_t row, size_t col) const {
-	if (row >= this->rows || col >= this->cols)
+	if (row >= this->rows || col >= this->cols) {
 		throw std::out_of_range("Matrix index out of bounds");
+	}
 	return (this->matrix[row * this->cols + col]);
 }
 
 DMatrix DMatrix::operator+(const DMatrix &other) const {
-	if (this->rows != other.rows || this->cols != other.cols)
+	if (this->rows != other.rows || this->cols != other.cols) {
 		throw std::invalid_argument("Matrix dimensions mismatch operator+");
+	}
 	DMatrix result(this->rows, this->cols);
 	std::transform(this->matrix.begin(), this->matrix.end(),
 				   other.matrix.begin(), result.matrix.begin(),
@@ -52,8 +55,9 @@ DMatrix DMatrix::operator+(const DMatrix &other) const {
 }
 
 DMatrix DMatrix::operator-(const DMatrix &other) const {
-	if (this->rows != other.rows || this->cols != other.cols)
+	if (this->rows != other.rows || this->cols != other.cols) {
 		throw std::invalid_argument("Matrix dimensions mismatch operator-");
+	}
 	DMatrix result(this->rows, this->cols);
 	std::transform(this->matrix.begin(), this->matrix.end(),
 				   other.matrix.begin(), result.matrix.begin(),
@@ -62,9 +66,10 @@ DMatrix DMatrix::operator-(const DMatrix &other) const {
 }
 
 DMatrix DMatrix::operator*(const DMatrix &other) const {
-	if (this->cols != other.rows)
+	if (this->cols != other.rows) {
 		throw std::invalid_argument(
 			"Matrix dimensions incompatible for multiplication");
+	}
 	DMatrix result(this->rows, other.cols);
 	for (size_t i = 0; i < this->rows; i += BLOCK_SIZE) {
 		for (size_t j = 0; j < other.cols; j += BLOCK_SIZE) {
@@ -89,8 +94,9 @@ DMatrix DMatrix::operator*(const DMatrix &other) const {
 }
 
 DMatrix &DMatrix::operator+=(const DMatrix &other) {
-	if (this->rows != other.rows || this->cols != other.cols)
+	if (this->rows != other.rows || this->cols != other.cols) {
 		throw std::invalid_argument("Matrix dimensions mismatch operator+=");
+	}
 	std::transform(this->matrix.begin(), this->matrix.end(),
 				   other.matrix.begin(), this->matrix.begin(),
 				   std::plus<float>());
@@ -98,8 +104,9 @@ DMatrix &DMatrix::operator+=(const DMatrix &other) {
 }
 
 DMatrix &DMatrix::operator-=(const DMatrix &other) {
-	if (this->rows != other.rows || this->cols != other.cols)
+	if (this->rows != other.rows || this->cols != other.cols) {
 		throw std::invalid_argument("Matrix dimensions mismatch operator-=");
+	}
 	std::transform(this->matrix.begin(), this->matrix.end(),
 				   other.matrix.begin(), this->matrix.begin(),
 				   std::minus<float>());
@@ -133,8 +140,8 @@ DMatrix DMatrix::operator*(float n) const {
 }
 
 DMatrix &DMatrix::operator+=(float n) {
-	std::transform(matrix.begin(), matrix.end(), matrix.begin(),
-				   [n](float x) { return x + n; });
+	std::transform(this->matrix.begin(), this->matrix.end(),
+				   this->matrix.begin(), [n](float x) { return x + n; });
 	return (*this);
 }
 
@@ -193,8 +200,9 @@ void DMatrix::map(float (*func)(float)) {
 }
 
 void DMatrix::multiply(const DMatrix &other) {
-	if (this->rows != other.rows || this->cols != other.cols)
+	if (this->rows != other.rows || this->cols != other.cols) {
 		throw std::invalid_argument("Matrix dimensions mismatch multiply()");
+	}
 	std::transform(this->matrix.begin(), this->matrix.end(),
 				   other.matrix.begin(), this->matrix.begin(),
 				   std::multiplies<float>());

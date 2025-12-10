@@ -291,13 +291,16 @@ NeuralNetwork NeuralNetwork::mutate(float (*func)(float)) const {
 }
 
 const DMatrix &NeuralNetwork::getBiasAt(const size_t index) const {
-	if (index > this->hiddenLayerLen) return (this->bias[this->hiddenLayerLen]);
+	if (index > this->hiddenLayerLen) {
+		return (this->bias[this->hiddenLayerLen]);
+	}
 	return (this->bias[index]);
 }
 
 const DMatrix &NeuralNetwork::getWeigthAt(const size_t index) const {
-	if (index > this->hiddenLayerLen)
+	if (index > this->hiddenLayerLen) {
 		return (this->weight[this->hiddenLayerLen]);
+	}
 	return (this->weight[index]);
 }
 
