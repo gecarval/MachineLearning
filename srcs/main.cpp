@@ -1,29 +1,16 @@
 #include "../includes/Machine.hpp"
 
-// Window Settings
-static const char		  windowTitle[] = "Machine Learning";
-static const unsigned int windowWidth = 800;
-static const unsigned int windowHeight = 600;
-static const unsigned int frameLimit = 120;
-
-// Neural Network Settings
-static const unsigned int inputNodes = 2;
-static const unsigned int hiddenNodes = 4;
-static const unsigned int outputNodes = 1;
-static const unsigned int hiddenLayerLength = 2;
-static const float		  learningRate = 0.0001f;
-
 // Line Settings
 static const Line initialLine = {500.0f, 0.5f, -200.0f};
-
-// Points Settings
-static const unsigned int initialPointAmount = 2000;
 
 float calcDeclive(float m, float x, float d) {
 	return (m * x + d);
 }
 
 void initPoints(Machine &machine) {
+	// Points Settings
+	static const unsigned int initialPointAmount = 2000;
+
 	machine.points = std::vector<Vector2>(initialPointAmount);
 	machine.desired = std::vector<float>(initialPointAmount);
 	for (size_t i = 0; i < initialPointAmount; i++) {
@@ -38,6 +25,12 @@ void initPoints(Machine &machine) {
 }
 
 void initEngine(Machine &machine) {
+	// Window Settings
+	static const char		  windowTitle[] = "Machine Learning";
+	static const unsigned int windowWidth = 800;
+	static const unsigned int windowHeight = 600;
+	static const unsigned int frameLimit = 120;
+
 	// Init Raylib Window with no Logs
 	SetTraceLogLevel(LOG_ERROR);
 	InitWindow(windowWidth, windowHeight, windowTitle);
@@ -59,6 +52,13 @@ void initEngine(Machine &machine) {
 	static const float rotation = 0.0f;
 	static const float zoom = 1.0f;
 	machine.camera = (Camera2D){offset, target, rotation, zoom};
+
+	// Neural Network Settings
+	static const unsigned int inputNodes = 2;
+	static const unsigned int hiddenNodes = 4;
+	static const unsigned int outputNodes = 1;
+	static const unsigned int hiddenLayerLength = 2;
+	static const float		  learningRate = 0.0001f;
 
 	// Neural Network and Perceptron States initialization
 	machine.NN =
@@ -99,7 +99,9 @@ int main(void) {
 	SetRandomSeed(local_time->tm_sec);
 	Machine machine;
 	initEngine(machine);
-	while (!WindowShouldClose()) updateState(machine);
+	while (!WindowShouldClose()) {
+		updateState(machine);
+	}
 	endEngine(machine);
 	return (0);
 }

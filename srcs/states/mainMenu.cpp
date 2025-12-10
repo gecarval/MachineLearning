@@ -1,10 +1,9 @@
 #include "../../includes/Machine.hpp"
 
-// Main Menu Title Setting
-static const char title[] = "MAIN MENU";
-static const char subTitle[] = "PRESS ENTER or SPACE to START";
-
 void renderMainMenu(Machine &machine) {
+	// Main Menu Title Setting
+	static const char title[] = "MAIN MENU";
+	static const char subTitle[] = "PRESS ENTER or SPACE to START";
 	// Main Menu Title Padding
 	const int	  titleFontSize = GetScreenWidth() / 20;
 	const int	  subTitleFontSize = titleFontSize / 2;
