@@ -37,7 +37,7 @@
 
 - Clone the repository;
 ``` sh
-
+git clone https://github.com/gecarval/MachineLearning.git
 ```
 - Move to the folder;
 ``` sh
