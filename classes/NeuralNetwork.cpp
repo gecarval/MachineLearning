@@ -306,12 +306,18 @@ const DMatrix &NeuralNetwork::getWeigthAt(const size_t index) const {
 
 void NeuralNetwork::setHiddenLayerActivation(float (*Activate)(float),
 											 float (*Deactivate)(float)) {
+	if (!Activate || !Deactivate) {
+		return;
+	}
 	this->HiddenActivate = Activate;
 	this->HiddenDeactivate = Deactivate;
 }
 
 void NeuralNetwork::setOutputLayerActivation(float (*Activate)(float),
 											 float (*Deactivate)(float)) {
+	if (!Activate || !Deactivate) {
+		return;
+	}
 	this->OutputActivate = Activate;
 	this->OutputDeactivate = Deactivate;
 }
