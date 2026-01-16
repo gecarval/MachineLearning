@@ -70,19 +70,19 @@ DMatrix DMatrix::operator*(const DMatrix &other) const {
 	}
 	DMatrix result(this->rows, other.cols);
 	for (size_t i = 0; i < this->rows; i += BLOCK_SIZE) {
-		for (size_t j = 0; j < other.cols; j += BLOCK_SIZE) {
-			for (size_t k = 0; k < this->cols; k += BLOCK_SIZE) {
-				for (size_t ii = i; ii < std::min(i + BLOCK_SIZE, this->rows);
-					 ++ii) {
-					for (size_t jj = j;
-						 jj < std::min(j + BLOCK_SIZE, other.cols); ++jj) {
-						float sum = 0.0f;
-						for (size_t kk = k;
-							 kk < std::min(k + BLOCK_SIZE, this->cols); ++kk) {
-							sum += this->matrix[ii * cols + kk] *
-								   other.matrix[kk * other.cols + jj];
+		for (size_t k = 0; k < this->cols; k += BLOCK_SIZE) {
+			for (size_t j = 0; j < other.cols; j += BLOCK_SIZE) {
+				const size_t maxii = std::min(i + BLOCK_SIZE, this->rows);
+				for (size_t ii = i; ii < maxii; ++ii) {
+					const size_t maxkk = std::min(k + BLOCK_SIZE, this->cols);
+					for (size_t kk = k; kk < maxkk; ++kk) {
+						const float	 a_val = this->matrix[ii * cols + kk];
+						const size_t maxjj =
+							std::min(j + BLOCK_SIZE, other.cols);
+						for (size_t jj = j; jj < maxjj; ++jj) {
+							result.matrix[ii * result.cols + jj] +=
+								a_val * other.matrix[kk * other.cols + jj];
 						}
-						result.matrix[ii * result.cols + jj] += sum;
 					}
 				}
 			}
