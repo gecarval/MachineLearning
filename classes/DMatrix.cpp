@@ -63,11 +63,7 @@ DMatrix DMatrix::operator-(const DMatrix &other) const {
 	return (result);
 }
 
-DMatrix DMatrix::operator*(const DMatrix &other) const {
-	if (this->cols != other.rows) {
-		throw std::invalid_argument(
-			"Matrix dimensions incompatible for multiplication");
-	}
+DMatrix DMatrix::multiplyVectorized(const DMatrix &other) const {
 	DMatrix result(this->rows, other.cols);
 	for (size_t i = 0; i < this->rows; i += BLOCK_SIZE) {
 		for (size_t k = 0; k < this->cols; k += BLOCK_SIZE) {
@@ -79,6 +75,12 @@ DMatrix DMatrix::operator*(const DMatrix &other) const {
 						const float	 a_val = this->matrix[ii * cols + kk];
 						const size_t maxjj =
 							std::min(j + BLOCK_SIZE, other.cols);
+// Vectorization hints for compiler
+#if defined(__clang__)
+#pragma clang loop vectorize(enable) interleave(enable)
+#elif defined(__GNUC__)
+#pragma GCC ivdep
+#endif
 						for (size_t jj = j; jj < maxjj; ++jj) {
 							result.matrix[ii * result.cols + jj] +=
 								a_val * other.matrix[kk * other.cols + jj];
@@ -88,7 +90,74 @@ DMatrix DMatrix::operator*(const DMatrix &other) const {
 			}
 		}
 	}
-	return (result);
+	return result;
+}
+
+DMatrix DMatrix::multiplyOptimized(const DMatrix &other) const {
+	DMatrix result(this->rows, other.cols);
+	// Use smaller block size for better cache utilization on innermost loops
+	constexpr size_t MICRO_BLOCK = 8;
+#ifdef _OPENMP
+#pragma omp parallel for collapse(2) schedule(dynamic, 4)
+#endif
+	for (size_t i = 0; i < this->rows; i += BLOCK_SIZE) {
+		for (size_t j = 0; j < other.cols; j += BLOCK_SIZE) {
+			// Clear the result block
+			const size_t maxii = std::min(i + BLOCK_SIZE, this->rows);
+			const size_t maxjj = std::min(j + BLOCK_SIZE, other.cols);
+			for (size_t k = 0; k < this->cols; k += BLOCK_SIZE) {
+				const size_t maxkk = std::min(k + BLOCK_SIZE, this->cols);
+				// Micro-blocking for even better cache behavior
+				for (size_t ii = i; ii < maxii; ii += MICRO_BLOCK) {
+					for (size_t kk = k; kk < maxkk; kk += MICRO_BLOCK) {
+						const size_t micro_ii_end =
+							std::min(ii + MICRO_BLOCK, maxii);
+						const size_t micro_kk_end =
+							std::min(kk + MICRO_BLOCK, maxkk);
+						for (size_t iii = ii; iii < micro_ii_end; ++iii) {
+							for (size_t kkk = kk; kkk < micro_kk_end; ++kkk) {
+								const float a_val =
+									this->matrix[iii * cols + kkk];
+								// Prefetch next row of B matrix
+								if (kkk + 1 < micro_kk_end) {
+									__builtin_prefetch(
+										&other.matrix[(kkk + 1) * other.cols +
+													  j],
+										0, 1);
+								}
+// Vectorizable innermost loop
+#if defined(__clang__)
+#pragma clang loop vectorize(enable) interleave(enable) unroll(enable)
+#elif defined(__GNUC__)
+#pragma GCC ivdep
+#pragma GCC unroll 4
+#endif
+								for (size_t jjj = j; jjj < maxjj; ++jjj) {
+									result.matrix[iii * result.cols + jjj] +=
+										a_val *
+										other.matrix[kkk * other.cols + jjj];
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return result;
+}
+
+DMatrix DMatrix::operator*(const DMatrix &other) const {
+	if (this->cols != other.rows) {
+		throw std::invalid_argument(
+			"Matrix dimensions incompatible for multiplication");
+	}
+	// Automatically choose best implementation based on size
+	const size_t total_ops = this->rows * this->cols * other.cols;
+	if (total_ops < 1000000) {
+		return multiplyVectorized(other);
+	}
+	return multiplyOptimized(other);
 }
 
 DMatrix &DMatrix::operator+=(const DMatrix &other) {

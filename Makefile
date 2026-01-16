@@ -4,7 +4,7 @@
 #
 
 CXX = g++
-CXXFLAGS = -Wall -Wextra -Werror -g
+CXXFLAGS = -Wall -Wextra -Werror -g -O3 -march=native -ffast-math -ftree-vectorize -fopenmp
 STDRULE = -std=c++17
 NAME = machinelearn
 DEBUG = valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --suppressions=./valgrind.supp -s

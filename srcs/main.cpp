@@ -55,15 +55,16 @@ void initEngine(Machine &machine) {
 
 	// Neural Network Settings
 	static const unsigned int inputNodes = 2;
-	static const unsigned int hiddenNodes = 4;
+	static const unsigned int hiddenNodes = 16;
 	static const unsigned int outputNodes = 1;
-	static const unsigned int hiddenLayerLength = 2;
+	static const unsigned int hiddenLayerLength = 3;
 	static const float		  learningRate = 0.0001f;
 
 	// Neural Network and Perceptron States initialization
 	machine.NN =
 		NeuralNetwork(inputNodes, hiddenNodes, outputNodes, hiddenLayerLength);
 	machine.NN.setLearnRate(learningRate);
+	machine.NN.enableSoftmax(true);
 	machine.state = STATE::MAINMENU;
 	machine.line = initialLine;
 	initPoints(machine);

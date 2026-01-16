@@ -5,6 +5,7 @@
 #include "./JsonParser.hpp"
 #include <cmath>
 #include <cstddef>
+#include <vector>
 
 #ifndef NNLEARNRATE
 #define NNLEARNRATE 0.001f
@@ -13,6 +14,7 @@
 // Gradient Descent
 float clampGradient(const float x);
 float errorTolerance(const float x);
+
 // Activation Functions
 float Tanh(const float x);
 float Sigmoid(const float x);
@@ -20,6 +22,8 @@ float SiLU(const float x);
 float ReLU(const float x);
 float LeakyReLU(const float x);
 float Step(const float x);
+float Linear(const float x);
+
 // Deactivation Functions
 float DTanh(const float x);
 float DSigmoid(const float x);
@@ -27,6 +31,11 @@ float DSiLU(const float x);
 float DReLU(const float x);
 float DLeakyReLU(const float x);
 float DStep(const float x);
+float DLinear(const float x);
+
+// NEW: Softmax functions
+DMatrix Softmax(const DMatrix &x);
+DMatrix DSoftmax(const DMatrix &output, const DMatrix &error);
 
 class NeuralNetwork {
   private:
@@ -41,6 +50,7 @@ class NeuralNetwork {
 	float (*HiddenDeactivate)(float);
 	float (*OutputActivate)(float);
 	float (*OutputDeactivate)(float);
+	bool useSoftmax;
 
   public:
 	static const int CLAMP = 10000;
@@ -59,8 +69,8 @@ class NeuralNetwork {
 	NeuralNetwork(const NeuralNetwork &other);
 	NeuralNetwork &operator=(const NeuralNetwork &other);
 
-	DMatrix			   feedFoward(const DMatrix &input) const;
-	std::vector<float> feedFoward(const std::vector<float> &input) const;
+	DMatrix			   feedForward(const DMatrix &input) const;
+	std::vector<float> feedForward(const std::vector<float> &input) const;
 	void			   train(const DMatrix &inputArray, const DMatrix &desired);
 	void			   clampWeightsAndBiases();
 
@@ -68,6 +78,7 @@ class NeuralNetwork {
 											float (*Deactivate)(float));
 	void		   setOutputLayerActivation(float (*Activate)(float),
 											float (*Deactivate)(float));
+	void		   enableSoftmax(bool enable);
 	void		   setLearnRate(const float newLearnRate);
 	float		   getLearnRate(void) const;
 	size_t		   getHiddenLayerLength(void) const;
@@ -75,7 +86,7 @@ class NeuralNetwork {
 	size_t		   getNumberOfHiddenNodes(void) const;
 	size_t		   getNumberOfOutputsNodes(void) const;
 	const DMatrix &getBiasAt(const size_t index) const;
-	const DMatrix &getWeigthAt(const size_t index) const;
+	const DMatrix &getWeightAt(const size_t index) const;
 	NeuralNetwork  mutate(float (*func)(float)) const;
 
 	// Serialize NeuralNetwork to a JSON-like text file

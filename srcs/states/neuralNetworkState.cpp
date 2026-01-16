@@ -66,8 +66,7 @@ static void inputHandler(Machine &machine) {
 								   machine.NN.getNumberOfOutputsNodes(),
 								   machine.NN.getHiddenLayerLength());
 		machine.NN.setLearnRate(ln);
-		machine.NN.setHiddenLayerActivation(SiLU, DSiLU);
-		machine.NN.setOutputLayerActivation(Sigmoid, DSigmoid);
+		machine.NN.enableSoftmax(true);
 	}
 	if (IsKeyPressed(KEY_D)) {
 		trainData.clear();
@@ -178,7 +177,7 @@ void DrawNeuralNetwork(const NeuralNetwork &nn, float screenWidth,
 
 	// Draw weights (lines between layers)
 	for (size_t layer = 0; layer < nn.getHiddenLayerLength() + 1; ++layer) {
-		const DMatrix &weights = nn.getWeigthAt(layer);
+		const DMatrix &weights = nn.getWeightAt(layer);
 		for (size_t i = 0; i < weights.getRowLength(); ++i) {
 			for (size_t j = 0; j < weights.getColLength(); ++j) {
 				Vector2 start = nodePositions[layer][j];
@@ -225,7 +224,7 @@ void renderMap(Machine &machine) {
 		for (int x = 0; x < size; x++) {
 			const std::vector<float> input = {Remap(x, 0, size, 0, 1.0f),
 											  Remap(y, 0, size, 1.0f, 0)};
-			const std::vector<float> output = machine.NN.feedFoward(input);
+			const std::vector<float> output = machine.NN.feedForward(input);
 			const unsigned char		 alpha = Remap(output[0], 0, 1, 0, 255);
 			const Color gridColor = (Color){alpha, alpha, alpha, 255};
 			DrawPixel(x, y, gridColor);
@@ -254,11 +253,12 @@ void renderPoints(Machine &machine) {
 	EndMode3D();
 	DrawTextureEx(tmp.texture, (Vector2){0, GetScreenHeight() / 2.0f}, 0,
 				  imageScale, WHITE);
+
+	static const float radius = 2.0f;
+	static const Color color1 = RED;
+	static const Color color2 = GREEN;
 	for (size_t i = 0; i < trainData.size(); i++) {
-		static const float radius = 2.0f;
-		static const Color color1 = RED;
-		static const Color color2 = GREEN;
-		const float		   pointX =
+		const float pointX =
 			Remap(trainData[i][0], 0.0f, 1.0f, padding.x, paddingEnd.x);
 		const float pointY =
 			Remap(trainData[i][1], 0.0f, 1.0f, padding.y, paddingEnd.y);

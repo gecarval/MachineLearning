@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <vector>
 
-static const size_t BLOCK_SIZE = 32;
+static const size_t BLOCK_SIZE = 64;
 
 class DMatrix {
   protected:
@@ -53,6 +53,9 @@ class DMatrix {
 	float			   getValue(size_t row, size_t col) const;
 	size_t			   getRowLength() const;
 	size_t			   getColLength() const;
+	// Different multiplication implementations
+	DMatrix multiplyVectorized(const DMatrix &other) const;
+	DMatrix multiplyOptimized(const DMatrix &other) const;
 };
 
 std::ostream &operator<<(std::ostream &out, const DMatrix &m);
