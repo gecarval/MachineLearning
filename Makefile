@@ -32,6 +32,7 @@ IMGUIINC =	./includes/imgui/imgui.h					\
 SRC =	./classes/DMatrix.cpp					\
 		./classes/Perceptron.cpp				\
 		./classes/NeuralNetwork.cpp				\
+		./classes/ui/Button.cpp					\
 		./srcs/states/mainMenu.cpp				\
 		./srcs/states/perceptronState.cpp		\
 		./srcs/states/neuralNetworkState.cpp	\
@@ -48,6 +49,7 @@ INCS =	-I./classes/							\
 		./includes/raylib/libraylib.a -lGL -lm -lpthread -ldl -lrt -lX11
 
 INCLUDES = ./includes/Machine.hpp		\
+		   ./classes/ui/Button.hpp		\
 		   ./classes/NeuralNetwork.hpp	\
 		   ./classes/Perceptron.hpp		\
 		   ./classes/JsonParser.hpp		\

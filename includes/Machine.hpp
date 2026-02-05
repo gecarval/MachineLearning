@@ -4,6 +4,7 @@
 // INCLUDES
 #include "../classes/NeuralNetwork.hpp"
 #include "../classes/Perceptron.hpp"
+#include "../classes/ui/Button.hpp"
 #include "./imgui/imgui.h"
 #include "imgui/rlImGui.h"
 #include <chrono>
