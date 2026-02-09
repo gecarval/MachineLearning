@@ -65,7 +65,7 @@ void initEngine(Machine &machine) {
 		NeuralNetwork(inputNodes, hiddenNodes, outputNodes, hiddenLayerLength);
 	machine.NN.setLearnRate(learningRate);
 	machine.NN.enableSoftmax(true);
-	machine.state = STATE::MAINMENU;
+	machine.state = STATE::MENU::MAIN;
 	machine.line = initialLine;
 	initPoints(machine);
 }
@@ -73,16 +73,14 @@ void initEngine(Machine &machine) {
 void updateState(Machine &machine) {
 	SetExitKey(KEY_ESCAPE);
 	switch (machine.state) {
-		case STATE::MAINMENU:
-			machine.state = handleMainMenuState(machine);
+		default:
+			machine.state = handleMenuState(machine);
 			break;
-		case STATE::PERCEPTRON:
+		case STATE::GAME::PERCEPTRON:
 			machine.state = handlePerceptronState(machine);
 			break;
-		case STATE::NEURALNETWORK:
+		case STATE::GAME::NEURALNETWORK:
 			machine.state = handleNeuralNetworkState(machine);
-			break;
-		default:
 			break;
 	}
 }

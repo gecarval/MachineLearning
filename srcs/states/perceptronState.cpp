@@ -183,7 +183,7 @@ void renderCartesianPlane(Machine &machine) {
 
 int handlePerceptronState(Machine &machine) {
 	SetExitKey(0);
-	if (IsKeyPressed(KEY_ESCAPE)) return (STATE::MAINMENU);
+	if (IsKeyPressed(KEY_ESCAPE)) return (STATE::MENU::MAIN);
 	inputHandler(machine);
 	BeginDrawing();
 	renderCartesianPlane(machine);
@@ -191,5 +191,5 @@ int handlePerceptronState(Machine &machine) {
 	renderImGui(machine);
 	DrawFPS(drawFpsPos.x, drawFpsPos.y);
 	EndDrawing();
-	return (STATE::PERCEPTRON);
+	return (STATE::GAME::PERCEPTRON);
 }

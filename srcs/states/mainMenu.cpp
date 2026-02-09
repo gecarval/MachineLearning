@@ -18,16 +18,27 @@ void renderMainMenu(Machine &machine) {
 	DrawText(title, titlePos.x, titlePos.y, titleFontSize, DARKGREEN);
 	DrawText(subTitle, subTitlePos.x, subTitlePos.y, subTitleFontSize,
 			 DARKGREEN);
-	machine.state = STATE::MAINMENU;
 }
 
-int handleMainMenuState(Machine &machine) {
+int handleMainState(Machine &machine) {
 	SetExitKey(KEY_ESCAPE);
-	if (IsKeyPressed(KEY_SPACE)) return (STATE::PERCEPTRON);
-	if (IsKeyPressed(KEY_ENTER)) return (STATE::NEURALNETWORK);
+	if (IsKeyPressed(KEY_SPACE)) return (STATE::GAME::PERCEPTRON);
+	if (IsKeyPressed(KEY_ENTER)) return (STATE::GAME::NEURALNETWORK);
 	BeginDrawing();
 	renderMainMenu(machine);
 	DrawFPS(drawFpsPos.x, drawFpsPos.y);
 	EndDrawing();
-	return (STATE::MAINMENU);
+	return (machine.state);
+}
+
+int handleMenuState(Machine &machine) {
+	switch (machine.state) {
+		case STATE::MENU::MAIN:
+			machine.state = handleMainState(machine);
+			break;
+		case STATE::MENU::SETTING:
+			machine.state = STATE::MENU::MAIN;
+			break;
+	}
+	return machine.state;
 }

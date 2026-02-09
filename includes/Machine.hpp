@@ -15,7 +15,10 @@ struct Line {
 	float d;
 };
 
-enum STATE { MAINMENU, PERCEPTRON, NEURALNETWORK };
+struct STATE {
+	enum MENU { MAIN, SETTING };
+	enum GAME { PERCEPTRON = 2, NEURALNETWORK, CNN };
+};
 
 struct Machine {
 	int					 state;
@@ -34,6 +37,6 @@ static const Vector2 drawFpsPos = (Vector2){10.0f, 10.0f};
 float calcDeclive(float m, float x, float d);
 int	  handlePerceptronState(Machine &machine);
 int	  handleNeuralNetworkState(Machine &machine);
-int	  handleMainMenuState(Machine &machine);
+int	  handleMenuState(Machine &machine);
 
 #endif

@@ -277,7 +277,7 @@ void renderPoints(Machine &machine) {
 
 int handleNeuralNetworkState(Machine &machine) {
 	SetExitKey(0);
-	if (IsKeyPressed(KEY_ESCAPE)) return (STATE::MAINMENU);
+	if (IsKeyPressed(KEY_ESCAPE)) return (STATE::MENU::MAIN);
 	inputHandler(machine);
 	static const int trainLoop = 100;
 	if (!trainData.empty()) {
@@ -293,5 +293,5 @@ int handleNeuralNetworkState(Machine &machine) {
 	DrawNeuralNetwork(machine.NN, GetScreenWidth(), GetScreenHeight() / 2.0f);
 	DrawFPS(drawFpsPos.x, drawFpsPos.y);
 	EndDrawing();
-	return (STATE::NEURALNETWORK);
+	return (STATE::GAME::NEURALNETWORK);
 }
