@@ -48,7 +48,8 @@ Perceptron::~Perceptron() {
 	delete[] this->weight;
 }
 
-Perceptron::Perceptron(const Perceptron &other) {
+Perceptron::Perceptron(const Perceptron &other)
+	: bias(0), learnRate(LEARNRATE), weight(nullptr), weightLen(1) {
 	if (this != &other) *this = other;
 }
 
