@@ -39,13 +39,13 @@ DMatrix DSoftmax(const DMatrix &output, const DMatrix &error);
 
 class NeuralNetwork {
   private:
-	float	 learnRate;
-	size_t	 numberOfInputsNodes;
-	size_t	 numberOfHiddenNodes;
-	size_t	 numberOfOutputNodes;
-	size_t	 hiddenLayerLen;
-	DMatrix *weight;
-	DMatrix *bias;
+	float				 learnRate;
+	size_t				 numberOfInputsNodes;
+	size_t				 numberOfHiddenNodes;
+	size_t				 numberOfOutputNodes;
+	size_t				 hiddenLayerLen;
+	std::vector<DMatrix> weight;
+	std::vector<DMatrix> bias;
 	float (*HiddenActivate)(float);
 	float (*HiddenDeactivate)(float);
 	float (*OutputActivate)(float);
@@ -196,7 +196,8 @@ class NeuralNetwork {
 						 numberOfOutputNodes, hiddenLayerLen);
 		nn.setLearnRate(learnRate);
 
-		auto parseMatrixArray = [&](const std::string &key, DMatrix *matrices) {
+		auto parseMatrixArray = [&](const std::string	&key,
+									std::vector<DMatrix> matrices) {
 			pos = content.find("\"" + key + "\":", pos);
 			if (pos == std::string::npos)
 				throw std::runtime_error("Key '" + key + "' not found");

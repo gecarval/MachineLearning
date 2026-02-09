@@ -142,8 +142,8 @@ DMatrix DSoftmax(const DMatrix &output, const DMatrix &error) {
 
 NeuralNetwork::NeuralNetwork()
 	: learnRate(NNLEARNRATE), numberOfInputsNodes(2), numberOfHiddenNodes(2),
-	  numberOfOutputNodes(1), hiddenLayerLen(1), weight(new DMatrix[2]),
-	  bias(new DMatrix[2]), HiddenActivate(Sigmoid), HiddenDeactivate(DSigmoid),
+	  numberOfOutputNodes(1), hiddenLayerLen(1), weight(2), bias(2),
+	  HiddenActivate(Sigmoid), HiddenDeactivate(DSigmoid),
 	  OutputActivate(Sigmoid), OutputDeactivate(DSigmoid), useSoftmax(false) {
 	this->weight[0] =
 		DMatrix(this->numberOfHiddenNodes, this->numberOfInputsNodes);
@@ -160,10 +160,9 @@ NeuralNetwork::NeuralNetwork(const size_t numberOfInputsNodes,
 							 const size_t numberOfOutputNodes)
 	: learnRate(NNLEARNRATE), numberOfInputsNodes(numberOfInputsNodes),
 	  numberOfHiddenNodes(numberOfHiddenNodes),
-	  numberOfOutputNodes(numberOfOutputNodes), hiddenLayerLen(1),
-	  weight(new DMatrix[2]), bias(new DMatrix[2]), HiddenActivate(Sigmoid),
-	  HiddenDeactivate(DSigmoid), OutputActivate(Sigmoid),
-	  OutputDeactivate(DSigmoid) {
+	  numberOfOutputNodes(numberOfOutputNodes), hiddenLayerLen(1), weight(2),
+	  bias(2), HiddenActivate(Sigmoid), HiddenDeactivate(DSigmoid),
+	  OutputActivate(Sigmoid), OutputDeactivate(DSigmoid) {
 	this->weight[0] =
 		DMatrix(this->numberOfHiddenNodes, this->numberOfInputsNodes);
 	this->weight[1] =
@@ -181,9 +180,8 @@ NeuralNetwork::NeuralNetwork(const size_t numberOfInputsNodes,
 	: learnRate(NNLEARNRATE), numberOfInputsNodes(numberOfInputsNodes),
 	  numberOfHiddenNodes(numberOfHiddenNodes),
 	  numberOfOutputNodes(numberOfOutputNodes),
-	  hiddenLayerLen(hiddenLayerLength),
-	  weight(new DMatrix[hiddenLayerLength + 1]),
-	  bias(new DMatrix[hiddenLayerLength + 1]), HiddenActivate(ReLU),
+	  hiddenLayerLen(hiddenLayerLength), weight(hiddenLayerLength + 1),
+	  bias(hiddenLayerLength + 1), HiddenActivate(ReLU),
 	  HiddenDeactivate(DReLU), OutputActivate(Linear),
 	  OutputDeactivate(DLinear), useSoftmax(false) {
 	// Input layer -> First hidden layer
@@ -208,14 +206,11 @@ NeuralNetwork::NeuralNetwork(const size_t numberOfInputsNodes,
 	this->bias[this->hiddenLayerLen].randomize(this->numberOfHiddenNodes);
 }
 
-NeuralNetwork::NeuralNetwork(const NeuralNetwork &other)
-	: weight(NULL), bias(NULL) {
+NeuralNetwork::NeuralNetwork(const NeuralNetwork &other) : weight(0), bias(0) {
 	*this = other;
 }
 
 NeuralNetwork::~NeuralNetwork() {
-	delete[] this->weight;
-	delete[] this->bias;
 }
 
 NeuralNetwork &NeuralNetwork::operator=(const NeuralNetwork &other) {
@@ -225,14 +220,8 @@ NeuralNetwork &NeuralNetwork::operator=(const NeuralNetwork &other) {
 		this->numberOfHiddenNodes = other.numberOfHiddenNodes;
 		this->numberOfOutputNodes = other.numberOfOutputNodes;
 		this->hiddenLayerLen = other.hiddenLayerLen;
-		if (this->weight != NULL) delete[] this->weight;
-		this->weight = new DMatrix[this->hiddenLayerLen + 1];
-		for (size_t i = 0; i < this->hiddenLayerLen + 1; i++)
-			this->weight[i] = other.weight[i];
-		if (this->bias != NULL) delete[] this->bias;
-		this->bias = new DMatrix[this->hiddenLayerLen + 1];
-		for (size_t i = 0; i < this->hiddenLayerLen + 1; i++)
-			this->bias[i] = other.bias[i];
+		this->weight = other.weight;
+		this->bias = other.bias;
 		this->HiddenActivate = other.HiddenActivate;
 		this->HiddenDeactivate = other.HiddenDeactivate;
 		this->OutputActivate = other.OutputActivate;
