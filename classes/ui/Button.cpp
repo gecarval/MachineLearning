@@ -1,8 +1,8 @@
 #include "./Button.hpp"
 
 // Constructor
-Button::Button(float x, float y, float width, float height,
-			   const std::string &text)
+Button::Button(const float x, const float y, const float width,
+			   const float height, const std::string &text)
 	: bounds{x, y, width, height}, text(text), fontSize(20), textColor(WHITE),
 	  normalColor{100, 100, 100, 255}, hoverColor{130, 130, 130, 255},
 	  pressedColor{70, 70, 70, 255}, borderColor{50, 50, 50, 255},
@@ -10,152 +10,215 @@ Button::Button(float x, float y, float width, float height,
 	  wasPressed(false), enabled(true), onClick(nullptr) {
 }
 
+Button::Button(const float x, const float y, const Vector2 &size,
+			   const std::string &text)
+	: bounds{x, y, size.x, size.y}, text(text), fontSize(20), textColor(WHITE),
+	  normalColor{100, 100, 100, 255}, hoverColor{130, 130, 130, 255},
+	  pressedColor{70, 70, 70, 255}, borderColor{50, 50, 50, 255},
+	  borderWidth(0.0f), roundness(0.0f), isHovered(false), isPressed(false),
+	  wasPressed(false), enabled(true), onClick(nullptr) {
+}
+
+Button::Button(const Vector2 &position, const float width, const float height,
+			   const std::string &text)
+	: bounds{position.x, position.y, width, height}, text(text), fontSize(20),
+	  textColor(WHITE), normalColor{100, 100, 100, 255},
+	  hoverColor{130, 130, 130, 255}, pressedColor{70, 70, 70, 255},
+	  borderColor{50, 50, 50, 255}, borderWidth(0.0f), roundness(0.0f),
+	  isHovered(false), isPressed(false), wasPressed(false), enabled(true),
+	  onClick(nullptr) {
+}
+
+Button::Button(const Vector2 &position, const Vector2 &size,
+			   const std::string &text)
+	: bounds{position.x, position.y, size.x, size.y}, text(text), fontSize(20),
+	  textColor(WHITE), normalColor{100, 100, 100, 255},
+	  hoverColor{130, 130, 130, 255}, pressedColor{70, 70, 70, 255},
+	  borderColor{50, 50, 50, 255}, borderWidth(0.0f), roundness(0.0f),
+	  isHovered(false), isPressed(false), wasPressed(false), enabled(true),
+	  onClick(nullptr) {
+}
+
+Button::Button(const Rectangle &bounds, const std::string &text)
+	: bounds{bounds}, text(text), fontSize(20), textColor(WHITE),
+	  normalColor{100, 100, 100, 255}, hoverColor{130, 130, 130, 255},
+	  pressedColor{70, 70, 70, 255}, borderColor{50, 50, 50, 255},
+	  borderWidth(0.0f), roundness(0.0f), isHovered(false), isPressed(false),
+	  wasPressed(false), enabled(true), onClick(nullptr) {
+}
+
+#include <iostream>
+
 // Update method - checks for mouse interaction
-void Button::Update() {
-	if (!enabled) {
-		isHovered = false;
-		isPressed = false;
+void Button::update() {
+	if (!this->enabled) {
+		this->isHovered = false;
+		this->isPressed = false;
 		return;
 	}
 
-	CheckInteraction();
+	this->checkInteraction();
 
 	// Detect click event (button was pressed and now released)
-	if (wasPressed && !isPressed && isHovered && onClick) {
-		onClick();
+	if (this->wasPressed && !this->isPressed && this->isHovered &&
+		this->onClick) {
+		this->onClick();
 	}
 
-	wasPressed = isPressed;
+	this->wasPressed = this->isPressed;
 }
 
 // Draw method - renders the button
-void Button::Draw() {
-	Color currentColor = GetCurrentColor();
+void Button::draw() {
+	const Color &currentColor = this->getCurrentColor();
 
 	// Draw button background
-	if (roundness > 0.0f) {
-		DrawRectangleRounded(bounds, roundness, 16, currentColor);
+	if (this->roundness > 0.0f) {
+		DrawRectangleRounded(this->bounds, this->roundness, 16, currentColor);
 	} else {
-		DrawRectangleRec(bounds, currentColor);
+		DrawRectangleRec(this->bounds, currentColor);
 	}
 
 	// Draw border if enabled
-	if (borderWidth > 0.0f) {
-		if (roundness > 0.0f) {
-			/*DrawRectangleRoundedLines(bounds, roundness, 16, borderWidth,
-									  borderColor);*/
-			DrawRectangleLinesEx(bounds, borderWidth, borderColor);
+	if (this->borderWidth > 0.0f) {
+		if (this->roundness > 0.0f) {
+			/*DrawRectangleRoundedLines(this->bounds, this->roundness, 16,
+									  this->borderWidth, this->borderColor);*/
+			DrawRectangleRounded(this->bounds, this->roundness, 16,
+								 this->borderColor);
 		} else {
-			DrawRectangleLinesEx(bounds, borderWidth, borderColor);
+			DrawRectangleLinesEx(this->bounds, this->borderWidth,
+								 this->borderColor);
 		}
 	}
 
 	// Draw text centered
-	Vector2 textSize =
-		MeasureTextEx(GetFontDefault(), text.c_str(), fontSize, 1);
-	Vector2 textPos = {bounds.x + (bounds.width - textSize.x) / 2.0f,
-					   bounds.y + (bounds.height - textSize.y) / 2.0f};
+	const Vector2 textSize =
+		MeasureTextEx(GetFontDefault(), this->text.c_str(), this->fontSize, 1);
+	const Vector2 textPos = {
+		this->bounds.x + (this->bounds.width - textSize.x) / 2.0f,
+		this->bounds.y + (this->bounds.height - textSize.y) / 2.0f};
 
-	DrawTextEx(GetFontDefault(), text.c_str(), textPos, fontSize, 1, textColor);
+	DrawTextEx(GetFontDefault(), this->text.c_str(), textPos, this->fontSize, 1,
+			   this->textColor);
 
 	// Optional: Draw disabled overlay
-	if (!enabled) {
-		Color overlay = {0, 0, 0, 100};
-		if (roundness > 0.0f) {
-			DrawRectangleRounded(bounds, roundness, 16, overlay);
+	if (!this->enabled) {
+		const Color &overlay = {0, 0, 0, 100};
+		if (this->roundness > 0.0f) {
+			DrawRectangleRounded(this->bounds, this->roundness, 16, overlay);
 		} else {
-			DrawRectangleRec(bounds, overlay);
+			DrawRectangleRec(this->bounds, overlay);
 		}
 	}
 }
 
 // Setters
-void Button::SetText(const std::string &text) {
+void Button::setText(const std::string &text) {
 	this->text = text;
 }
 
-void Button::SetPosition(float x, float y) {
-	bounds.x = x;
-	bounds.y = y;
+void Button::setPosition(const float x, const float y) {
+	this->bounds.x = x;
+	this->bounds.y = y;
 }
 
-void Button::SetSize(float width, float height) {
-	bounds.width = width;
-	bounds.height = height;
+void Button::setPosition(const Vector2 &position) {
+	this->bounds.x = position.x;
+	this->bounds.y = position.y;
 }
 
-void Button::SetColors(Color normal, Color hover, Color pressed) {
-	normalColor = normal;
-	hoverColor = hover;
-	pressedColor = pressed;
+void Button::setSize(const float width, const float height) {
+	this->bounds.width = width;
+	this->bounds.height = height;
 }
 
-void Button::SetTextColor(Color color) {
-	textColor = color;
+void Button::setSize(const Vector2 &size) {
+	this->bounds.width = size.x;
+	this->bounds.height = size.y;
 }
 
-void Button::SetFontSize(int size) {
-	fontSize = size;
+void Button::setBounds(const Rectangle &bounds) {
+	this->bounds = bounds;
 }
 
-void Button::SetBorderWidth(float width) {
-	borderWidth = width;
+void Button::setColors(const Color &normal, const Color &hover,
+					   const Color &pressed) {
+	this->normalColor = normal;
+	this->hoverColor = hover;
+	this->pressedColor = pressed;
 }
 
-void Button::SetBorderColor(Color color) {
-	borderColor = color;
+void Button::setTextColor(const Color &color) {
+	this->textColor = color;
 }
 
-void Button::SetRoundness(float roundness) {
+void Button::setFontSize(const unsigned int size) {
+	this->fontSize = size;
+}
+
+void Button::setBorderWidth(const float width) {
+	this->borderWidth = width;
+}
+
+void Button::setBorderColor(const Color &color) {
+	this->borderColor = color;
+}
+
+void Button::setRoundness(const float roundness) {
 	this->roundness = Clamp(roundness, 0.0f, 1.0f);
 }
 
-void Button::SetOnClick(std::function<void()> callback) {
-	onClick = callback;
+void Button::setOnClick(std::function<void()> callback) {
+	this->onClick = callback;
 }
 
 // Getters
-bool Button::IsPressed() const {
-	return isPressed;
+bool Button::isButtonPressed() const {
+	return this->isPressed;
 }
 
-bool Button::IsHovered() const {
-	return isHovered;
+bool Button::isButtonHovered() const {
+	return this->isHovered;
 }
 
-Rectangle Button::GetBounds() const {
-	return bounds;
+Rectangle &Button::getBounds() {
+	return this->bounds;
 }
 
-void Button::SetEnabled(bool enabled) {
+const Rectangle &Button::getBounds() const {
+	return this->bounds;
+}
+
+void Button::setEnabled(const bool enabled) {
 	this->enabled = enabled;
 }
 
-bool Button::IsEnabled() const {
-	return enabled;
+bool Button::isEnabled() const {
+	return this->enabled;
 }
 
 // Private helper methods
-Color Button::GetCurrentColor() const {
-	if (!enabled) {
-		return normalColor;
+Color Button::getCurrentColor() const {
+	if (!this->enabled) {
+		return this->normalColor;
 	}
 
-	if (isPressed) {
-		return pressedColor;
-	} else if (isHovered) {
-		return hoverColor;
+	if (this->isPressed) {
+		return this->pressedColor;
+	} else if (this->isHovered) {
+		return this->hoverColor;
 	}
-	return normalColor;
+	return this->normalColor;
 }
 
-void Button::CheckInteraction() {
-	Vector2 mousePos = GetMousePosition();
-	isHovered = CheckCollisionPointRec(mousePos, bounds);
+void Button::checkInteraction() {
+	const Vector2 &mousePos = GetMousePosition();
+	this->isHovered = CheckCollisionPointRec(mousePos, this->bounds);
 
-	if (isHovered && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-		isPressed = true;
+	if (this->isHovered && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+		this->isPressed = true;
 	} else if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
-		isPressed = false;
+		this->isPressed = false;
 	}
 }

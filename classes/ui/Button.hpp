@@ -7,44 +7,14 @@
 #include <string>
 
 class Button {
-  public:
-	// Constructor
-	Button(float x, float y, float width, float height,
-		   const std::string &text);
-
-	// Update and draw methods
-	void Update();
-	void Draw();
-
-	// Setters for customization
-	void SetText(const std::string &text);
-	void SetPosition(float x, float y);
-	void SetSize(float width, float height);
-	void SetColors(Color normal, Color hover, Color pressed);
-	void SetTextColor(Color color);
-	void SetFontSize(int size);
-	void SetBorderWidth(float width);
-	void SetBorderColor(Color color);
-	void SetRoundness(float roundness);
-	void SetOnClick(std::function<void()> callback);
-
-	// Getters
-	bool	  IsPressed() const;
-	bool	  IsHovered() const;
-	Rectangle GetBounds() const;
-
-	// State management
-	void SetEnabled(bool enabled);
-	bool IsEnabled() const;
-
   private:
 	// Position and size
 	Rectangle bounds;
 
 	// Text properties
-	std::string text;
-	int			fontSize;
-	Color		textColor;
+	std::string	 text;
+	unsigned int fontSize;
+	Color		 textColor;
 
 	// Visual properties
 	Color normalColor;
@@ -64,8 +34,50 @@ class Button {
 	std::function<void()> onClick;
 
 	// Helper methods
-	Color GetCurrentColor() const;
-	void  CheckInteraction();
+	Color getCurrentColor() const;
+	void  checkInteraction();
+
+  public:
+	// Constructor
+	Button(const float x, const float y, const float width, const float height,
+		   const std::string &text);
+	Button(const float x, const float y, const Vector2 &size,
+		   const std::string &text);
+	Button(const Vector2 &position, const float width, const float height,
+		   const std::string &text);
+	Button(const Vector2 &position, const Vector2 &size,
+		   const std::string &text);
+	Button(const Rectangle &button, const std::string &text);
+
+	// Update and draw methods
+	void update();
+	void draw();
+
+	// Setters for customization
+	void setText(const std::string &text);
+	void setPosition(const float x, const float y);
+	void setPosition(const Vector2 &position);
+	void setSize(float width, float height);
+	void setSize(const Vector2 &size);
+	void setBounds(const Rectangle &size);
+	void setColors(const Color &normal, const Color &hover,
+				   const Color &pressed);
+	void setTextColor(const Color &color);
+	void setFontSize(const unsigned int size);
+	void setBorderWidth(const float width);
+	void setBorderColor(const Color &color);
+	void setRoundness(const float roundness);
+	void setOnClick(std::function<void()> callback);
+
+	// Getters
+	bool			 isButtonPressed() const;
+	bool			 isButtonHovered() const;
+	Rectangle		&getBounds();
+	const Rectangle &getBounds() const;
+
+	// State management
+	void setEnabled(const bool enabled);
+	bool isEnabled() const;
 };
 
 #endif // BUTTON_H
