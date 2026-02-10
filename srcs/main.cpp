@@ -34,18 +34,12 @@ void initEngine(Machine &machine) {
 	// Init Raylib Window with no Logs
 	SetTraceLogLevel(LOG_ERROR);
 	InitWindow(windowWidth, windowHeight, windowTitle);
-
-	// Dynamic Window Size
-	const int monitorID = GetCurrentMonitor();
-	const int dynamicWindowWidth = GetMonitorWidth(monitorID) * 0.9f;
-	const int dynamicWindowHeight = GetMonitorHeight(monitorID) * 0.9f;
-	SetWindowSize(dynamicWindowWidth, dynamicWindowHeight);
 	SetTargetFPS(frameLimit);
 	rlImGuiSetup(true);
 
 	// Machine Camera2D Settings
-	const float		   posX = dynamicWindowWidth / 2.0f;
-	const float		   posY = dynamicWindowHeight / 2.0f;
+	const float		   posX = windowWidth / 2.0f;
+	const float		   posY = windowHeight / 2.0f;
 	const Vector2	   screenMiddle = (Vector2){posX, posY};
 	const Vector2	   target = screenMiddle;
 	const Vector2	   offset = screenMiddle;
