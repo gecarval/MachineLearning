@@ -4,10 +4,6 @@
 #include <exception>
 #include <string>
 
-Rectangle createRectangle(const Vector2 &pos, const Vector2 &size) {
-	return (Rectangle){pos.x, pos.y, size.x, size.y};
-};
-
 void renderSettings(Machine &mch) {
 	// Resolution Text
 	static const std::vector<std::string> resolution = {

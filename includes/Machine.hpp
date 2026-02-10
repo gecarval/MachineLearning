@@ -34,9 +34,12 @@ struct Machine {
 static const Vector2 drawFpsPos = (Vector2){10.0f, 10.0f};
 
 // Functions
-float calcDeclive(float m, float x, float d);
-int	  handlePerceptronState(Machine &machine);
-int	  handleNeuralNetworkState(Machine &machine);
-int	  handleMenuState(Machine &machine);
+float		  calcDeclive(float m, float x, float d);
+Vector2		  createVector2(const float x, const float y);
+Rectangle	  createRectangle(const Vector2 &pos, const Vector2 &size);
+const Button &backButton(Machine &machine);
+int			  handlePerceptronState(Machine &machine);
+int			  handleNeuralNetworkState(Machine &machine);
+int			  handleMenuState(Machine &machine);
 
 #endif

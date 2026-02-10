@@ -7,6 +7,26 @@ float calcDeclive(float m, float x, float d) {
 	return (m * x + d);
 }
 
+const Button &backButton(Machine &machine) {
+	// Main Menu Button Position
+	const Vector2 buttonSize = (Vector2){100, 50};
+	const Vector2 buttonPos = createVector2(GetScreenWidth() - buttonSize.x, 0);
+	const Rectangle bounds = createRectangle(buttonPos, buttonSize);
+	static Button	button(bounds, "Back");
+	button.setPosition(buttonPos.x, buttonPos.y);
+	button.setOnClick([&machine]() { machine.state = STATE::MENU::MAIN; });
+	button.update();
+	return (button);
+};
+
+Vector2 createVector2(const float x, const float y) {
+	return ((Vector2){x, y});
+};
+
+Rectangle createRectangle(const Vector2 &pos, const Vector2 &size) {
+	return ((Rectangle){pos.x, pos.y, size.x, size.y});
+};
+
 void initPoints(Machine &machine) {
 	// Points Settings
 	static const unsigned int initialPointAmount = 2000;
