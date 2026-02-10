@@ -291,7 +291,8 @@ int handleNeuralNetworkState(Machine &machine) {
 	ClearBackground(BLACK);
 	renderPoints(machine);
 	DrawNeuralNetwork(machine.NN, GetScreenWidth(), GetScreenHeight() / 2.0f);
+	backButton(machine).draw();
 	DrawFPS(drawFpsPos.x, drawFpsPos.y);
 	EndDrawing();
-	return (STATE::GAME::NEURALNETWORK);
+	return (machine.state);
 }

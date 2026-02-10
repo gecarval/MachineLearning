@@ -189,7 +189,8 @@ int handlePerceptronState(Machine &machine) {
 	renderCartesianPlane(machine);
 	renderPerceptron(machine);
 	renderImGui(machine);
+	backButton(machine).draw();
 	DrawFPS(drawFpsPos.x, drawFpsPos.y);
 	EndDrawing();
-	return (STATE::GAME::PERCEPTRON);
+	return (machine.state);
 }
