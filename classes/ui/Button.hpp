@@ -51,7 +51,7 @@ class Button {
 
 	// Update and draw methods
 	void update();
-	void draw();
+	void draw() const;
 
 	// Setters for customization
 	void setText(const std::string &text);

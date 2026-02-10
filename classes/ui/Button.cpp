@@ -69,7 +69,7 @@ void Button::update() {
 }
 
 // Draw method - renders the button
-void Button::draw() {
+void Button::draw() const {
 	const Color &currentColor = this->getCurrentColor();
 
 	// Draw button background
