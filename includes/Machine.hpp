@@ -20,6 +20,15 @@ struct STATE {
 	enum GAME { PERCEPTRON = 2, NEURALNETWORK, CNN };
 };
 
+struct Resolution {
+	int width;
+	int height;
+
+	std::string toString() const {
+		return std::to_string(width) + "x" + std::to_string(height);
+	}
+};
+
 struct Machine {
 	int					 state;
 	Camera2D			 camera;
@@ -41,5 +50,6 @@ const Button &backButton(Machine &machine);
 int			  handlePerceptronState(Machine &machine);
 int			  handleNeuralNetworkState(Machine &machine);
 int			  handleMenuState(Machine &machine);
+int			  handleCNNState(Machine &machine);
 
 #endif

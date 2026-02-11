@@ -96,6 +96,9 @@ void updateState(Machine &machine) {
 		case STATE::GAME::NEURALNETWORK:
 			machine.state = handleNeuralNetworkState(machine);
 			break;
+		case STATE::GAME::CNN:
+			machine.state = handleCNNState(machine);
+			break;
 	}
 }
 

@@ -5,68 +5,78 @@
 #include <string>
 
 void renderSettings(Machine &mch) {
-	// Resolution Text
-	static const std::vector<std::string> resolution = {
-		"1920x1080", "1600x900", "1440x900",
-		"1366x768",	 "1280x720", " 800x600"};
-	static int		   state = 5;
-	static std::string text = resolution[state];
-	// Settings Title Text
-	static std::string title = "SETTINGS";
-	// Settings Title Position
-	const Vector2 screenCenter =
-		(Vector2){GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
-	const int	  titleFontSize = GetScreenWidth() / 20;
-	const int	  titlePosOffset = titleFontSize * title.length() / 3;
-	const Vector2 titlePos = (Vector2){screenCenter.x - titlePosOffset, 20};
-	// Main Menu Button Position
-	const Vector2	buttonSize = (Vector2){200, 50};
-	const Vector2	buttonPos = screenCenter - buttonSize / 2;
-	const int		padding2 = buttonSize.y + 10;
-	const int		padding3 = 2 * buttonSize.y + 20;
-	const int		padding4 = 3 * buttonSize.y + 30;
-	const Rectangle bounds = createRectangle(buttonPos, buttonSize);
-	static Button	button1(bounds, "Raise Resolution");
-	static Button	button2(bounds, "Down Resolution");
-	static Button	button3(bounds, "FullScreen");
-	static Button	button4(bounds, "Back");
-	button1.setPosition(buttonPos.x, buttonPos.y);
-	button2.setPosition(buttonPos.x, buttonPos.y + padding2);
-	button3.setPosition(buttonPos.x, buttonPos.y + padding3);
-	button4.setPosition(buttonPos.x, buttonPos.y + padding4);
-	button1.setOnClick([]() {
-		state = Clamp(state - 1, 0, resolution.size());
-		text = resolution[state];
-		const int width = std::stoi(text);
-		const int height = std::stoi(text.substr(5));
-		SetWindowSize(width, height);
-	});
-	button2.setOnClick([]() {
-		state = Clamp(state + 1, 0, resolution.size() - 1);
-		text = resolution[state];
-		const int width = std::stoi(text);
-		const int height = std::stoi(text.substr(5));
-		SetWindowSize(width, height);
-	});
-	button3.setOnClick([]() { ToggleFullscreen(); });
-	button4.setOnClick([&mch]() { mch.state = STATE::MENU::MAIN; });
-	button1.update();
-	button2.update();
-	button3.update();
-	button4.update();
+	// Available resolutions
+	static const std::vector<Resolution> RESOLUTIONS = {
+		{1920, 1080}, {1600, 900}, {1440, 900},
+		{1366, 768},  {1280, 720}, {800, 600}};
+	static int currentResIndex = 5; // Start at 800x600
+	// Title configuration
+	static const std::string TITLE = "SETTINGS";
+	const int				 titleFontSize = GetScreenWidth() / 20;
+	const int	  titleWidth = MeasureText(TITLE.c_str(), titleFontSize);
+	const Vector2 titlePos = {(GetScreenWidth() - titleWidth) / 2.0f, 20.0f};
+	// Screen center
+	const Vector2 screenCenter = {GetScreenWidth() / 2.0f,
+								  GetScreenHeight() / 2.0f};
+	// Button configuration
+	constexpr Vector2 BUTTON_SIZE = {200.0f, 50.0f};
+	constexpr float	  BUTTON_SPACING = 10.0f;
+
+	const Vector2 firstButtonPos = {screenCenter.x - BUTTON_SIZE.x / 2.0f,
+									screenCenter.y - BUTTON_SIZE.y / 2.0f};
+	// Lambda to apply resolution
+	auto applyResolution = [](int index) {
+		if (index >= 0 && index < static_cast<int>(RESOLUTIONS.size())) {
+			SetWindowSize(RESOLUTIONS[index].width, RESOLUTIONS[index].height);
+		}
+	};
+	// Create buttons
+	static Button buttons[] = {
+		Button(firstButtonPos.x, firstButtonPos.y, BUTTON_SIZE.x, BUTTON_SIZE.y,
+			   "Increase Resolution"),
+		Button(firstButtonPos.x, firstButtonPos.y, BUTTON_SIZE.x, BUTTON_SIZE.y,
+			   "Decrease Resolution"),
+		Button(firstButtonPos.x, firstButtonPos.y, BUTTON_SIZE.x, BUTTON_SIZE.y,
+			   "Toggle Fullscreen"),
+		Button(firstButtonPos.x, firstButtonPos.y, BUTTON_SIZE.x, BUTTON_SIZE.y,
+			   "Back")};
+	// Initialize callbacks once
+	static bool initialized = false;
+	if (!initialized) {
+		buttons[0].setOnClick([&applyResolution]() {
+			currentResIndex = Clamp(currentResIndex - 1, 0,
+									static_cast<int>(RESOLUTIONS.size()) - 1);
+			applyResolution(currentResIndex);
+		});
+		buttons[1].setOnClick([&applyResolution]() {
+			currentResIndex = Clamp(currentResIndex + 1, 0,
+									static_cast<int>(RESOLUTIONS.size()) - 1);
+			applyResolution(currentResIndex);
+		});
+		buttons[2].setOnClick([]() { ToggleFullscreen(); });
+		buttons[3].setOnClick([&mch]() { mch.state = STATE::MENU::MAIN; });
+		initialized = true;
+	}
+	// Update button positions and state
+	for (int i = 0; i < 4; ++i) {
+		float yPos = firstButtonPos.y + i * (BUTTON_SIZE.y + BUTTON_SPACING);
+		buttons[i].setPosition(firstButtonPos.x, yPos);
+		buttons[i].update();
+	}
+	// Render
 	ClearBackground(RAYWHITE);
-	button1.draw();
-	button2.draw();
-	button3.draw();
-	button4.draw();
-	DrawText(title.c_str(), titlePos.x, titlePos.y, titleFontSize, DARKGREEN);
-	// Sub Title Fonts
-	const int	  subTitleFontSize = GetScreenWidth() / 30;
-	const int	  subTitlePosOffsetX = subTitleFontSize * text.length() / 3;
-	const float	  subTitlePosOffsetY = subTitleFontSize + 100;
-	const Vector2 subTitlePos =
-		(Vector2){screenCenter.x - subTitlePosOffsetX, subTitlePosOffsetY};
-	DrawText(text.c_str(), subTitlePos.x, subTitlePos.y, subTitleFontSize,
+	for (auto &button : buttons) {
+		button.draw();
+	}
+	// Draw title
+	DrawText(TITLE.c_str(), titlePos.x, titlePos.y, titleFontSize, DARKGREEN);
+	// Draw current resolution
+	const std::string currentRes = RESOLUTIONS[currentResIndex].toString();
+	const int		  subTitleFontSize = GetScreenWidth() / 30;
+	const int subTitleWidth = MeasureText(currentRes.c_str(), subTitleFontSize);
+	const Vector2 subTitlePos = {(GetScreenWidth() - subTitleWidth) / 2.0f,
+								 static_cast<float>(subTitleFontSize + 100)};
+	DrawText(currentRes.c_str(), subTitlePos.x, subTitlePos.y, subTitleFontSize,
 			 DARKGREEN);
 }
 
@@ -80,48 +90,59 @@ int handleSettingState(Machine &machine) {
 }
 
 void renderMainMenu(Machine &mch) {
-	// Main Menu Title Text
-	static std::string title = "MAIN MENU";
-	// Main Menu Title Position
-	const int	  titleFontSize = GetScreenWidth() / 20;
-	const int	  titlePosOffset = titleFontSize * title.length() / 3;
-	const Vector2 screenCenter =
-		(Vector2){GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
-	const Vector2 titlePos = (Vector2){screenCenter.x - titlePosOffset, 20};
-	// Main Menu Button Position
-	const Vector2	buttonSize = (Vector2){200, 50};
-	const Vector2	buttonPos = screenCenter - buttonSize / 2;
-	const int		padding2 = buttonSize.y + 10;
-	const int		padding3 = 2 * buttonSize.y + 20;
-	const int		padding4 = 3 * buttonSize.y + 30;
-	const Rectangle bounds = createRectangle(buttonPos, buttonSize);
-	static Button	button1(bounds, "Perceptron");
-	static Button	button2(bounds, "Neural Network");
-	static Button	button3(bounds, "Settings");
-	static Button	button4(bounds, "Exit");
-	button1.setPosition(buttonPos.x, buttonPos.y);
-	button2.setPosition(buttonPos.x, buttonPos.y + padding2);
-	button3.setPosition(buttonPos.x, buttonPos.y + padding3);
-	button4.setPosition(buttonPos.x, buttonPos.y + padding4);
-	button1.setOnClick([&mch]() { mch.state = STATE::GAME::PERCEPTRON; });
-	button2.setOnClick([&mch]() { mch.state = STATE::GAME::NEURALNETWORK; });
-	button3.setOnClick([&mch]() { mch.state = STATE::MENU::SETTING; });
-	button4.setOnClick([&mch]() {
-		mch.points.clear();
-		rlImGuiShutdown();
-		CloseWindow();
-		std::exit(0);
-	});
-	button1.update();
-	button2.update();
-	button3.update();
-	button4.update();
+	// Title rendering
+	static const std::string TITLE = "MAIN MENU";
+	const int				 titleFontSize = GetScreenWidth() / 20;
+	const int	  titleWidth = MeasureText(TITLE.c_str(), titleFontSize);
+	const Vector2 titlePos = {(GetScreenWidth() - titleWidth) / 2.0f, 20.0f};
+	// Button configuration
+	constexpr Vector2 BUTTON_SIZE = {200.0f, 50.0f};
+	constexpr float	  BUTTON_SPACING = 10.0f;
+	const Vector2	  screenCenter = {GetScreenWidth() / 2.0f,
+									  GetScreenHeight() / 2.0f};
+	const Vector2	  firstButtonPos = {screenCenter.x - BUTTON_SIZE.x / 2.0f,
+										screenCenter.y - BUTTON_SIZE.y / 2.0f};
+	// Create buttons (static for persistence)
+	static Button buttons[] = {
+		Button(firstButtonPos.x, firstButtonPos.y, BUTTON_SIZE.x, BUTTON_SIZE.y,
+			   "Perceptron"),
+		Button(firstButtonPos.x, firstButtonPos.y, BUTTON_SIZE.x, BUTTON_SIZE.y,
+			   "Neural Network"),
+		Button(firstButtonPos.x, firstButtonPos.y, BUTTON_SIZE.x, BUTTON_SIZE.y,
+			   "Conv Neural Network"),
+		Button(firstButtonPos.x, firstButtonPos.y, BUTTON_SIZE.x, BUTTON_SIZE.y,
+			   "Settings"),
+		Button(firstButtonPos.x, firstButtonPos.y, BUTTON_SIZE.x, BUTTON_SIZE.y,
+			   "Exit")};
+	// Initialize button callbacks once
+	static bool initialized = false;
+	if (!initialized) {
+		buttons[0].setOnClick(
+			[&mch]() { mch.state = STATE::GAME::PERCEPTRON; });
+		buttons[1].setOnClick(
+			[&mch]() { mch.state = STATE::GAME::NEURALNETWORK; });
+		buttons[2].setOnClick([&mch]() { mch.state = STATE::GAME::CNN; });
+		buttons[3].setOnClick([&mch]() { mch.state = STATE::MENU::SETTING; });
+		buttons[4].setOnClick([&mch]() {
+			mch.points.clear();
+			rlImGuiShutdown();
+			CloseWindow();
+			std::exit(0);
+		});
+		initialized = true;
+	}
+	// Update button positions and state
+	for (int i = 0; i < 5; ++i) {
+		float yPos = firstButtonPos.y + i * (BUTTON_SIZE.y + BUTTON_SPACING);
+		buttons[i].setPosition(firstButtonPos.x, yPos);
+		buttons[i].update();
+	}
+	// Render
 	ClearBackground(RAYWHITE);
-	button1.draw();
-	button2.draw();
-	button3.draw();
-	button4.draw();
-	DrawText(title.c_str(), titlePos.x, titlePos.y, titleFontSize, DARKGREEN);
+	for (auto &button : buttons) {
+		button.draw();
+	}
+	DrawText(TITLE.c_str(), titlePos.x, titlePos.y, titleFontSize, DARKGREEN);
 }
 
 int handleMainState(Machine &machine) {
