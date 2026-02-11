@@ -8,8 +8,7 @@ float calcDeclive(float m, float x, float d) {
 }
 
 const Button &backButton(Machine &machine) {
-	// Main Menu Button Position
-	const Vector2 buttonSize = (Vector2){100, 50};
+	const Vector2 buttonSize = createVector2(100, 50);
 	const Vector2 buttonPos = createVector2(GetScreenWidth() - buttonSize.x, 0);
 	const Rectangle bounds = createRectangle(buttonPos, buttonSize);
 	static Button	button(bounds, "Back");
@@ -17,77 +16,84 @@ const Button &backButton(Machine &machine) {
 	button.setOnClick([&machine]() { machine.state = STATE::MENU::MAIN; });
 	button.update();
 	return (button);
-};
+}
 
 Vector2 createVector2(const float x, const float y) {
 	return ((Vector2){x, y});
-};
+}
 
 Rectangle createRectangle(const Vector2 &pos, const Vector2 &size) {
 	return ((Rectangle){pos.x, pos.y, size.x, size.y});
-};
+}
 
 void initPoints(Machine &machine) {
-	// Points Settings
 	static const unsigned int initialPointAmount = 2000;
-
-	machine.points = std::vector<Vector2>(initialPointAmount);
-	machine.desired = std::vector<float>(initialPointAmount);
+	machine.points.resize(initialPointAmount);
+	machine.desired.resize(initialPointAmount);
 	for (size_t i = 0; i < initialPointAmount; i++) {
 		const float randXPos =
 			GetRandomValue(-GetScreenWidth(), GetScreenWidth());
 		const float randYPos =
 			GetRandomValue(-GetScreenHeight(), GetScreenHeight());
-		machine.points[i] = (Vector2){randXPos, randYPos};
+		machine.points[i] = createVector2(randXPos, randYPos);
 		const float lineY = calcDeclive(initialLine.m, randXPos, initialLine.d);
-		machine.desired[i] = machine.points[i].y > lineY ? 1 : -1;
+		machine.desired[i] = machine.points[i].y > lineY ? 1.0f : -1.0f;
 	}
 }
 
 void initEngine(Machine &machine) {
 	// Window Settings
-	static const char		  windowTitle[] = "Machine Learning";
-	static const unsigned int windowWidth = 800;
-	static const unsigned int windowHeight = 600;
-	static const unsigned int frameLimit = 120;
-
-	// Init Raylib Window with no Logs
-	SetTraceLogLevel(LOG_ERROR);
-	InitWindow(windowWidth, windowHeight, windowTitle);
-	SetTargetFPS(frameLimit);
+	constexpr char		   WINDOW_TITLE[] = "Machine Learning";
+	constexpr unsigned int WINDOW_WIDTH = 800;
+	constexpr unsigned int WINDOW_HEIGHT = 600;
+	constexpr unsigned int FRAME_LIMIT = 120;
+	// Init Raylib Window
+	SetTraceLogLevel(
+		LOG_WARNING); // Changed from LOG_ERROR to see important warnings
+	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE);
+	SetTargetFPS(FRAME_LIMIT);
 	rlImGuiSetup(true);
-
-	// Machine Camera2D Settings
-	const float		   posX = windowWidth / 2.0f;
-	const float		   posY = windowHeight / 2.0f;
-	const Vector2	   screenMiddle = (Vector2){posX, posY};
-	const Vector2	   target = screenMiddle;
-	const Vector2	   offset = screenMiddle;
-	static const float rotation = 0.0f;
-	static const float zoom = 1.0f;
-	machine.camera = (Camera2D){offset, target, rotation, zoom};
-
-	// Neural Network Settings
-	static const unsigned int inputNodes = 2;
-	static const unsigned int hiddenNodes = 6;
-	static const unsigned int outputNodes = 1;
-	static const unsigned int hiddenLayerLength = 3;
-	static const float		  learningRate = 0.0001f;
-
-	// Neural Network and Perceptron States initialization
-	machine.NN =
-		NeuralNetwork(inputNodes, hiddenNodes, outputNodes, hiddenLayerLength);
-	machine.NN.setLearnRate(learningRate);
+	// Camera2D Settings
+	const Vector2 screenMiddle =
+		createVector2(WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f);
+	machine.camera = (Camera2D){.offset = screenMiddle,
+								.target = screenMiddle,
+								.rotation = 0.0f,
+								.zoom = 1.0f};
+	// Neural Network Settings (for binary classification)
+	constexpr unsigned int NN_INPUT_NODES = 2;
+	constexpr unsigned int NN_HIDDEN_NODES = 6;
+	constexpr unsigned int NN_OUTPUT_NODES = 1;
+	constexpr unsigned int NN_HIDDEN_LAYERS = 3;
+	constexpr float		   NN_LEARNING_RATE = 0.0001f;
+	machine.NN = NeuralNetwork(NN_INPUT_NODES, NN_HIDDEN_NODES, NN_OUTPUT_NODES,
+							   NN_HIDDEN_LAYERS);
+	machine.NN.setLearnRate(NN_LEARNING_RATE);
 	machine.NN.enableSoftmax(true);
+	// CNN Settings (for digit recognition - 10 classes)
+	constexpr unsigned int CNN_INPUT_NODES = 576; // 24x24 pixels
+	constexpr unsigned int CNN_HIDDEN_NODES = 4096;
+	constexpr unsigned int CNN_OUTPUT_NODES = 10; // Digits 0-9
+	constexpr unsigned int CNN_HIDDEN_LAYERS = 1;
+	constexpr float		   CNN_LEARNING_RATE = 0.001f;
+	machine.CNN = NeuralNetwork(CNN_INPUT_NODES, CNN_HIDDEN_NODES,
+								CNN_OUTPUT_NODES, CNN_HIDDEN_LAYERS);
+	machine.CNN.setLearnRate(CNN_LEARNING_RATE);
+	// USE softmax for multi-class classification (10 outputs)
+	machine.CNN.enableSoftmax(true);
+	// Initialize state and line
 	machine.state = STATE::MENU::MAIN;
 	machine.line = initialLine;
+	// Initialize points for perceptron
 	initPoints(machine);
+	TraceLog(LOG_INFO, "Engine initialized successfully");
 }
 
 void updateState(Machine &machine) {
 	SetExitKey(KEY_ESCAPE);
 	switch (machine.state) {
-		default:
+		case STATE::MENU::MAIN:
+		case STATE::MENU::SETTING:
 			machine.state = handleMenuState(machine);
 			break;
 		case STATE::GAME::PERCEPTRON:
@@ -99,20 +105,31 @@ void updateState(Machine &machine) {
 		case STATE::GAME::CNN:
 			machine.state = handleCNNState(machine);
 			break;
+		default:
+			TraceLog(LOG_WARNING, "Unknown state: %d, returning to main menu",
+					 machine.state);
+			machine.state = STATE::MENU::MAIN;
+			break;
 	}
 }
 
 void endEngine(Machine &machine) {
 	machine.points.clear();
+	machine.desired.clear();
 	rlImGuiShutdown();
 	CloseWindow();
+	TraceLog(LOG_INFO, "Engine shutdown complete");
 }
 
 int main(void) {
-	std::time_t now = std::time(0);
-	std::tm	   *local_time = std::localtime(&now);
-	std::srand(local_time->tm_sec);
-	SetRandomSeed(local_time->tm_sec);
+	// Seed random number generators
+	const std::time_t  now = std::time(nullptr);
+	std::tm			  *localTime = std::localtime(&now);
+	const unsigned int seed = static_cast<unsigned int>(
+		localTime->tm_sec + localTime->tm_min * 60 + localTime->tm_hour * 3600);
+	std::srand(seed);
+	SetRandomSeed(seed);
+	// Initialize and run
 	Machine machine;
 	initEngine(machine);
 	while (!WindowShouldClose()) {

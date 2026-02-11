@@ -36,6 +36,7 @@ struct Machine {
 	std::vector<float>	 desired;
 	Perceptron			 brain;
 	NeuralNetwork		 NN;
+	NeuralNetwork		 CNN;
 	Line				 line;
 };
 
