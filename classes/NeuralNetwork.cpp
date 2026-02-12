@@ -99,7 +99,7 @@ float DLinear(const float x) {
 	return 1.0f;
 }
 
-// NEW: Softmax function for multi-class classification
+// Softmax function for multi-class classification
 DMatrix Softmax(const DMatrix &x) {
 	DMatrix result(x.getRowLength(), x.getColLength());
 	// Find max value for numerical stability
@@ -130,7 +130,7 @@ DMatrix Softmax(const DMatrix &x) {
 	return result;
 }
 
-// NEW: Softmax derivative (simplified for cross-entropy loss)
+// Softmax derivative (simplified for cross-entropy loss)
 // When using cross-entropy loss with softmax, the gradient simplifies to:
 // gradient = output - target
 DMatrix DSoftmax(const DMatrix &output, const DMatrix &error) {

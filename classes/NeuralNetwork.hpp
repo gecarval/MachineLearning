@@ -1,8 +1,9 @@
 #ifndef NEURALNETWORK_HPP
 #define NEURALNETWORK_HPP
 
+#include "../includes/json.hpp"
 #include "./DMatrix.hpp"
-#include "./JsonParser.hpp"
+#include "fstream"
 #include <cmath>
 #include <cstddef>
 #include <vector>
@@ -33,12 +34,12 @@ float DLeakyReLU(const float x);
 float DStep(const float x);
 float DLinear(const float x);
 
-// NEW: Softmax functions
+// Softmax functions
 DMatrix Softmax(const DMatrix &x);
 DMatrix DSoftmax(const DMatrix &output, const DMatrix &error);
 
 class NeuralNetwork {
-  private:
+  protected:
 	float				 learnRate;
 	size_t				 numberOfInputsNodes;
 	size_t				 numberOfHiddenNodes;
@@ -57,7 +58,7 @@ class NeuralNetwork {
 	static const int TOLERANCE = 10000;
 	static const int ALPHA = 100;
 
-	~NeuralNetwork();
+	virtual ~NeuralNetwork();
 	NeuralNetwork();
 	NeuralNetwork(const size_t numberOfInputsNodes,
 				  const size_t numberOfHiddenNodes,
@@ -69,10 +70,12 @@ class NeuralNetwork {
 	NeuralNetwork(const NeuralNetwork &other);
 	NeuralNetwork &operator=(const NeuralNetwork &other);
 
-	DMatrix			   feedForward(const DMatrix &input) const;
-	std::vector<float> feedForward(const std::vector<float> &input) const;
-	void			   train(const DMatrix &inputArray, const DMatrix &desired);
-	void			   clampWeightsAndBiases();
+	DMatrix feedForward(const DMatrix &input) const;
+	virtual std::vector<float>
+	feedForward(const std::vector<float> &input) const;
+
+	virtual void train(const DMatrix &inputArray, const DMatrix &desired);
+	void		 clampWeightsAndBiases();
 
 	void		   setHiddenLayerActivation(float (*Activate)(float),
 											float (*Deactivate)(float));
@@ -87,9 +90,10 @@ class NeuralNetwork {
 	size_t		   getNumberOfOutputsNodes(void) const;
 	const DMatrix &getBiasAt(const size_t index) const;
 	const DMatrix &getWeightAt(const size_t index) const;
-	NeuralNetwork  mutate(float (*func)(float)) const;
 
-	// Serialize NeuralNetwork to a JSON-like text file
+	virtual NeuralNetwork mutate(float (*func)(float)) const;
+
+	// Serialize NeuralNetwork to a JSON file
 	static void serialize(const NeuralNetwork &nn,
 						  const std::string	  &filename) {
 		std::ofstream out(filename);
@@ -97,147 +101,61 @@ class NeuralNetwork {
 			throw std::runtime_error("Unable to open file for serialization: " +
 									 filename);
 		}
-
-		JsonParser::writeObjectStart(out, 0);
-		JsonParser::writeKeyValue(out, "learnRate", nn.getLearnRate(), 2);
-		JsonParser::writeKeyValue(out, "numberOfInputsNodes",
-								  nn.getNumberOfInputsNodes(), 2);
-		JsonParser::writeKeyValue(out, "numberOfHiddenNodes",
-								  nn.getNumberOfHiddenNodes(), 2);
-		JsonParser::writeKeyValue(out, "numberOfOutputNodes",
-								  nn.getNumberOfOutputsNodes(), 2);
-		JsonParser::writeKeyValue(out, "hiddenLayerLen", nn.hiddenLayerLen, 2);
-
-		out << "  \"weights\": [\n";
-		for (size_t i = 0; i < nn.hiddenLayerLen + 1; ++i) {
-			JsonParser::writeArrayStart(out, 4);
-			for (size_t r = 0; r < nn.weight[i].getRowLength(); ++r) {
-				JsonParser::writeArrayStart(out, 6);
-				for (size_t c = 0; c < nn.weight[i].getColLength(); ++c) {
-					JsonParser::writeNumber(out, nn.weight[i].getValue(r, c),
-											c < nn.weight[i].getColLength() -
-													1);
-				}
-				JsonParser::writeArrayEnd(out, 6);
-				if (r < nn.weight[i].getRowLength() - 1) out << ",";
-				out << "\n";
-			}
-			JsonParser::writeArrayEnd(out, 4);
-			if (i < nn.hiddenLayerLen) out << ",";
-			out << "\n";
+		nlohmann::json j;
+		j["learnRate"] = nn.learnRate;
+		j["numberOfInputsNodes"] = nn.numberOfInputsNodes;
+		j["numberOfHiddenNodes"] = nn.numberOfHiddenNodes;
+		j["numberOfOutputNodes"] = nn.numberOfOutputNodes;
+		j["hiddenLayerLen"] = nn.hiddenLayerLen;
+		// Serialize Weights
+		for (const auto &weightMatrix : nn.weight) {
+			// DMatrix::toVector() returns the underlying std::vector<float>
+			j["weights"].push_back(weightMatrix.toVector());
 		}
-		out << "  ],\n";
-
-		out << "  \"biases\": [\n";
-		for (size_t i = 0; i < nn.hiddenLayerLen + 1; ++i) {
-			JsonParser::writeArrayStart(out, 4);
-			for (size_t r = 0; r < nn.bias[i].getRowLength(); ++r) {
-				JsonParser::writeArrayStart(out, 6);
-				for (size_t c = 0; c < nn.bias[i].getColLength(); ++c) {
-					JsonParser::writeNumber(out, nn.bias[i].getValue(r, c),
-											c < nn.bias[i].getColLength() - 1);
-				}
-				JsonParser::writeArrayEnd(out, 6);
-				if (r < nn.bias[i].getRowLength() - 1) out << ",";
-				out << "\n";
-			}
-			JsonParser::writeArrayEnd(out, 4);
-			if (i < nn.hiddenLayerLen) out << ",";
-			out << "\n";
+		// Serialize Biases
+		for (const auto &biasMatrix : nn.bias) {
+			j["biases"].push_back(biasMatrix.toVector());
 		}
-		out << "  ]\n";
-		JsonParser::writeObjectEnd(out, 0);
-
+		out << j.dump(4); // Use 4 spaces for indentation
 		out.close();
 	}
 
-	// Deserialize NeuralNetwork from a JSON-like text file
+	// Deserialize NeuralNetwork from a JSON file
 	static NeuralNetwork deserialize(const std::string &filename) {
-		std::string content = JsonParser::readFile(filename);
-		size_t		pos = 0;
-
-		JsonParser::skipTo(content, pos, '{', "file root");
-
-		pos = content.find("\"learnRate\":");
-		if (pos == std::string::npos)
-			throw std::runtime_error("Key 'learnRate' not found");
-		pos += std::string("\"learnRate\":").length();
-		float learnRate = JsonParser::parseFloat(content, pos, "learnRate");
-
-		pos = content.find("\"numberOfInputsNodes\":", pos);
-		if (pos == std::string::npos)
-			throw std::runtime_error("Key 'numberOfInputsNodes' not found");
-		pos += std::string("\"numberOfInputsNodes\":").length();
-		size_t numberOfInputsNodes =
-			JsonParser::parseSizeT(content, pos, "numberOfInputsNodes");
-
-		pos = content.find("\"numberOfHiddenNodes\":", pos);
-		if (pos == std::string::npos)
-			throw std::runtime_error("Key 'numberOfHiddenNodes' not found");
-		pos += std::string("\"numberOfHiddenNodes\":").length();
-		size_t numberOfHiddenNodes =
-			JsonParser::parseSizeT(content, pos, "numberOfHiddenNodes");
-
-		pos = content.find("\"numberOfOutputNodes\":", pos);
-		if (pos == std::string::npos)
-			throw std::runtime_error("Key 'numberOfOutputNodes' not found");
-		pos += std::string("\"numberOfOutputNodes\":").length();
-		size_t numberOfOutputNodes =
-			JsonParser::parseSizeT(content, pos, "numberOfOutputNodes");
-
-		pos = content.find("\"hiddenLayerLen\":", pos);
-		if (pos == std::string::npos)
-			throw std::runtime_error("Key 'hiddenLayerLen' not found");
-		pos += std::string("\"hiddenLayerLen\":").length();
-		size_t hiddenLayerLen =
-			JsonParser::parseSizeT(content, pos, "hiddenLayerLen");
-
-		NeuralNetwork nn(numberOfInputsNodes, numberOfHiddenNodes,
-						 numberOfOutputNodes, hiddenLayerLen);
-		nn.setLearnRate(learnRate);
-
-		auto parseMatrixArray = [&](const std::string	&key,
-									std::vector<DMatrix> matrices) {
-			pos = content.find("\"" + key + "\":", pos);
-			if (pos == std::string::npos)
-				throw std::runtime_error("Key '" + key + "' not found");
-			pos += std::string("\"" + key + "\":").length();
-			JsonParser::skipTo(content, pos, '[', key + " array");
-
-			for (size_t i = 0; i < hiddenLayerLen + 1; ++i) {
-				JsonParser::skipTo(content, pos, '[',
-								   key + " matrix " + std::to_string(i));
-				for (size_t r = 0; r < matrices[i].getRowLength(); ++r) {
-					JsonParser::skipTo(content, pos, '[',
-									   key + " matrix " + std::to_string(i) +
-										   " row " + std::to_string(r));
-					for (size_t c = 0; c < matrices[i].getColLength(); ++c) {
-						matrices[i].setValue(
-							r, c,
-							JsonParser::parseFloat(
-								content, pos,
-								key + " matrix " + std::to_string(i) + " row " +
-									std::to_string(r) + " col " +
-									std::to_string(c)));
-						if (c < matrices[i].getColLength() - 1) {
-							JsonParser::skipTo(content, pos, ',',
-											   key + " matrix " +
-												   std::to_string(i) + " row " +
-												   std::to_string(r));
-						}
-					}
-					JsonParser::skipTo(content, pos, ']',
-									   key + " matrix " + std::to_string(i) +
-										   " row " + std::to_string(r));
-				}
-				JsonParser::skipTo(content, pos, ']',
-								   key + " matrix " + std::to_string(i));
+		std::ifstream in(filename);
+		if (!in.is_open()) {
+			throw std::runtime_error(
+				"Unable to open file for deserialization: " + filename);
+		}
+		nlohmann::json j;
+		in >> j;
+		// Create the NN instance using the loaded parameters
+		NeuralNetwork nn(j.at("numberOfInputsNodes").get<size_t>(),
+						 j.at("numberOfHiddenNodes").get<size_t>(),
+						 j.at("numberOfOutputNodes").get<size_t>(),
+						 j.at("hiddenLayerLen").get<size_t>());
+		nn.setLearnRate(j.at("learnRate").get<float>());
+		// Load Weights
+		for (size_t i = 0; i < nn.hiddenLayerLen + 1; ++i) {
+			std::vector<float> w_data =
+				j.at("weights").at(i).get<std::vector<float>>();
+			// We must reshape the flat vector back to a Matrix (rows, cols)
+			size_t r = nn.weight[i].getRowLength();
+			size_t c = nn.weight[i].getColLength();
+			nn.weight[i] = DMatrix(w_data);
+			// Manual Reshape: Since DMatrix(vector) creates a column vector,
+			// we manually fix dimensions
+			nn.weight[i] = DMatrix(r, c);
+			for (size_t idx = 0; idx < w_data.size(); ++idx) {
+				nn.weight[i](idx / c, idx % c) = w_data[idx];
 			}
-		};
-
-		parseMatrixArray("weights", nn.weight);
-		parseMatrixArray("biases", nn.bias);
-
+		}
+		// Load Biases
+		for (size_t i = 0; i < nn.hiddenLayerLen + 1; ++i) {
+			std::vector<float> b_data =
+				j.at("biases").at(i).get<std::vector<float>>();
+			nn.bias[i] = DMatrix(b_data);
+		}
 		return (nn);
 	}
 };

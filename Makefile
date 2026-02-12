@@ -59,6 +59,7 @@ SRC := $(CLASS_DIR)/DMatrix.cpp \
 
 # Project headers
 HEADERS := $(INCLUDES_DIR)/Machine.hpp \
+		   $(INCLUDES_DIR)/json.hpp \
            $(CLASS_DIR)/ui/Button.hpp \
            $(CLASS_DIR)/NeuralNetwork.hpp \
            $(CLASS_DIR)/Perceptron.hpp \
