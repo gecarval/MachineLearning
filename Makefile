@@ -50,6 +50,7 @@ IMGUI_INC := $(IMGUI_DIR)/imgui.h \
 SRC := $(CLASS_DIR)/DMatrix.cpp \
        $(CLASS_DIR)/Perceptron.cpp \
        $(CLASS_DIR)/NeuralNetwork.cpp \
+       $(CLASS_DIR)/CNN.cpp \
        $(CLASS_DIR)/ui/Button.cpp \
        $(SRC_DIR)/states/mainMenu.cpp \
        $(SRC_DIR)/states/perceptronState.cpp \
@@ -62,6 +63,7 @@ HEADERS := $(INCLUDES_DIR)/Machine.hpp \
 		   $(INCLUDES_DIR)/json.hpp \
            $(CLASS_DIR)/ui/Button.hpp \
            $(CLASS_DIR)/NeuralNetwork.hpp \
+           $(CLASS_DIR)/CNN.hpp \
            $(CLASS_DIR)/Perceptron.hpp \
            $(CLASS_DIR)/JsonParser.hpp \
            $(CLASS_DIR)/DMatrix.hpp
