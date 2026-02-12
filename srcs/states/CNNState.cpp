@@ -306,7 +306,10 @@ static void handleKeyboardInput(Machine &machine) {
 	// Reset network
 	if (IsKeyPressed(KEY_R)) {
 		const float learnRate = machine.CNN.getLearnRate();
-		machine.CNN = NeuralNetwork(576, 128, 10, 2);
+		machine.CNN = NeuralNetwork(machine.CNN.getNumberOfInputsNodes(),
+									machine.CNN.getNumberOfHiddenNodes(),
+									machine.CNN.getNumberOfOutputsNodes(),
+									machine.CNN.getHiddenLayerLength());
 		machine.CNN.setLearnRate(learnRate);
 		machine.CNN.enableSoftmax(true);
 		cnnState.isPredicting = false;
@@ -324,6 +327,8 @@ static void handleKeyboardInput(Machine &machine) {
 	// Save/Load model
 	if (IsKeyPressed(KEY_S) && IsKeyDown(KEY_LEFT_CONTROL)) {
 		try {
+			// NeuralNetwork::serialize(machine.CNN.getClassifier(),
+			// "CNN.json");
 			NeuralNetwork::serialize(machine.CNN, "CNN.json");
 			TraceLog(LOG_INFO, "Model saved to CNN.json");
 		} catch (const std::exception &error) {
@@ -333,6 +338,7 @@ static void handleKeyboardInput(Machine &machine) {
 
 	if (IsKeyPressed(KEY_L) && IsKeyDown(KEY_LEFT_CONTROL)) {
 		try {
+			// machine.CNN.setClassifier(NeuralNetwork::deserialize("CNN.json"));
 			machine.CNN = NeuralNetwork::deserialize("CNN.json");
 			cnnState.isPredicting = false;
 			TraceLog(LOG_INFO, "Model loaded from CNN.json");

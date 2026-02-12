@@ -70,6 +70,17 @@ void initEngine(Machine &machine) {
 							   NN_HIDDEN_LAYERS);
 	machine.NN.setLearnRate(NN_LEARNING_RATE);
 	machine.NN.enableSoftmax(true);
+	/*constexpr unsigned int CANVAS_WIDTH = 24;
+	constexpr unsigned int CANVAS_HEIGHT = 24;
+	constexpr unsigned int CNN_FILTERS = 1;
+	constexpr unsigned int CNN_KERNEL_SIZE = 4;
+	constexpr unsigned int CNN_HIDDEN_LAYERS = 1;
+	constexpr unsigned int CNN_OUTPUT_NODES = 10; // Digits 0-9
+	constexpr float		   CNN_LEARNING_RATE = 0.001f;
+	machine.CNN =
+		ConvNeuralNetwork(CANVAS_WIDTH, CANVAS_HEIGHT, CNN_FILTERS,
+						  CNN_KERNEL_SIZE, CNN_HIDDEN_LAYERS, CNN_OUTPUT_NODES);
+	machine.CNN.setLearnRate(CNN_LEARNING_RATE);*/
 	// CNN Settings (for digit recognition - 10 classes)
 	constexpr unsigned int CNN_INPUT_NODES = 576; // 24x24 pixels
 	constexpr unsigned int CNN_HIDDEN_NODES = 4096;
