@@ -74,8 +74,8 @@ class NeuralNetwork {
 	virtual std::vector<float>
 	feedForward(const std::vector<float> &input) const;
 
-	virtual void train(const DMatrix &inputArray, const DMatrix &desired);
-	void		 clampWeightsAndBiases();
+	virtual DMatrix train(const DMatrix &inputArray, const DMatrix &desired);
+	void			clampWeightsAndBiases();
 
 	void		   setHiddenLayerActivation(float (*Activate)(float),
 											float (*Deactivate)(float));

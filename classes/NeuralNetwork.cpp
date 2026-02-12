@@ -257,7 +257,8 @@ DMatrix NeuralNetwork::feedForward(const DMatrix &input) const {
 	return res;
 }
 
-void NeuralNetwork::train(const DMatrix &inputArray, const DMatrix &desired) {
+DMatrix NeuralNetwork::train(const DMatrix &inputArray,
+							 const DMatrix &desired) {
 	// Forward pass - store all layer outputs
 	std::vector<DMatrix> outputs(this->hiddenLayerLen + 2);
 	outputs[0] = inputArray; // Store input as output[0]
@@ -279,7 +280,7 @@ void NeuralNetwork::train(const DMatrix &inputArray, const DMatrix &desired) {
 	// Backward pass
 	DMatrix layerError = desired - outputs[this->hiddenLayerLen + 1];
 	// Iterate backwards through layers
-	for (int i = static_cast<int>(this->hiddenLayerLen); i >= 0; i--) {
+	for (long i = static_cast<long>(this->hiddenLayerLen); i >= 0; i--) {
 		DMatrix gradient = outputs[i + 1];
 		// Compute gradient based on activation function
 		if (i == static_cast<int>(this->hiddenLayerLen)) {
@@ -305,11 +306,10 @@ void NeuralNetwork::train(const DMatrix &inputArray, const DMatrix &desired) {
 		this->weight[i] += weightDelta;
 		this->bias[i] += gradient;
 		// Propagate error backwards
-		if (i > 0) {
-			layerError = this->weight[i].transpose() * gradient;
-		}
+		layerError = this->weight[i].transpose() * gradient;
 	}
 	this->clampWeightsAndBiases();
+	return (layerError);
 }
 
 void NeuralNetwork::clampWeightsAndBiases() {
