@@ -1,4 +1,5 @@
 #include "../../includes/Machine.hpp"
+#include <exception>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -286,6 +287,30 @@ static void handleCanvasInput(Canvas &canvas, float cellSize) {
 	}
 }
 
+static void saveGrid(void) {
+	const std::string directory = "traindata/";
+	const std::string subdirectory = std::to_string(cnnState.currentLabel);
+	try {
+		if (!std::filesystem::exists(directory)) {
+			std::filesystem::create_directory(directory);
+		}
+		if (!std::filesystem::exists(directory + subdirectory)) {
+			std::filesystem::create_directory(directory + subdirectory);
+		}
+	} catch (const std::exception &error) {
+		std::cerr << "ERROR: " << error.what() << std::endl;
+	}
+	for (int number = 0; number < 1000; number++) {
+		const std::string image = "/image_" + std::to_string(number);
+		const std::string filename = directory + subdirectory + image;
+		const std::string extension = ".png";
+		if (!std::filesystem::exists(filename + extension)) {
+			cnnState.canvas.exportImageCanvas(filename + extension);
+			break;
+		}
+	}
+}
+
 static void handleKeyboardInput(Machine &machine) {
 	if (!IsWindowFocused()) return;
 
@@ -306,19 +331,7 @@ static void handleKeyboardInput(Machine &machine) {
 		for (int i = 0; i < 10; ++i) {
 			machine.CNN.train(input, target);
 		}
-		const std::string directory =
-			"traindata/" + std::to_string(cnnState.currentLabel) + "/";
-		if (!std::filesystem::exists(directory)) {
-			std::filesystem::create_directory(directory);
-		}
-		for (int number = 0; number < 1000; number++) {
-			const std::string filename =
-				directory + "image_" + std::to_string(number) + ".png";
-			if (!std::filesystem::exists(filename)) {
-				cnnState.canvas.exportImageCanvas(filename);
-				break;
-			}
-		}
+		saveGrid();
 		TraceLog(LOG_INFO, "Trained digit: %d", cnnState.currentLabel);
 	}
 
@@ -329,16 +342,16 @@ static void handleKeyboardInput(Machine &machine) {
 		cnnState.isPredicting = true;
 
 		// Find best prediction
-		// int	  maxIdx = 0;
+		int	  maxIdx = 0;
 		float maxVal = cnnState.predictions[0];
 		for (int i = 1; i < 10; ++i) {
 			if (cnnState.predictions[i] > maxVal) {
 				maxVal = cnnState.predictions[i];
-				// maxIdx = i;
+				maxIdx = i;
 			}
 		}
-		/*TraceLog(LOG_INFO, "Predicted: %d (%.1f%% confidence)", maxIdx,
-				 maxVal * 100);*/
+		TraceLog(LOG_INFO, "Predicted: %d (%.1f%% confidence)", maxIdx,
+				 maxVal * 100);
 	}
 
 	// Reset network
