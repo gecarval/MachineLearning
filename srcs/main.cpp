@@ -83,7 +83,7 @@ void initEngine(Machine &machine) {
 	machine.CNN.setLearnRate(CNN_LEARNING_RATE);*/
 	// CNN Settings (for digit recognition - 10 classes)
 	constexpr unsigned int CNN_INPUT_NODES = 576; // 24x24 pixels
-	constexpr unsigned int CNN_HIDDEN_NODES = 4096;
+	constexpr unsigned int CNN_HIDDEN_NODES = 20000;
 	constexpr unsigned int CNN_OUTPUT_NODES = 10; // Digits 0-9
 	constexpr unsigned int CNN_HIDDEN_LAYERS = 1;
 	constexpr float		   CNN_LEARNING_RATE = 0.001f;

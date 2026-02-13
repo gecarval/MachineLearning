@@ -1,4 +1,7 @@
 #include "../../includes/Machine.hpp"
+#include <filesystem>
+#include <memory>
+#include <string>
 
 // Canvas configuration
 namespace CanvasConfig {
@@ -8,15 +11,14 @@ constexpr int BRUSH_SIZE = 1;
 // Dynamic sizing based on screen
 inline float getCellSize() {
 	const float minDimension = std::min(GetScreenWidth(), GetScreenHeight());
-	return std::max(10.0f, minDimension / 40.0f);
+	return (std::max(10.0f, minDimension / 40.0f));
 }
 
 inline float getCanvasSize() {
-	return GRID_SIZE * getCellSize();
+	return (GRID_SIZE * getCellSize());
 }
 } // namespace CanvasConfig
 
-// Canvas state
 struct Canvas {
 	std::vector<std::vector<float>> grid;
 	Vector2							position;
@@ -27,8 +29,31 @@ struct Canvas {
 		  position{0, 0} {
 	}
 
+	void exportImageCanvas(const std::string &filename) const {
+		const int width = CanvasConfig::GRID_SIZE;
+		const int height = CanvasConfig::GRID_SIZE;
+		Image	  canvasImage = GenImageColor(width, height, BLACK);
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				const float			val = this->grid[y][x];
+				const unsigned char colorVal =
+					static_cast<unsigned char>(val * 255.0f);
+				const Color pixelColor =
+					(Color){colorVal, colorVal, colorVal, 255};
+				ImageDrawPixel(&canvasImage, x, y, pixelColor);
+			}
+		}
+		if (ExportImage(canvasImage, filename.c_str())) {
+			TraceLog(LOG_INFO, "Canvas exported successfully to %s",
+					 filename.c_str());
+		} else {
+			TraceLog(LOG_ERROR, "Failed to export canvas image!");
+		}
+		UnloadImage(canvasImage);
+	}
+
 	void clear() {
-		for (auto &row : grid) {
+		for (auto &row : this->grid) {
 			std::fill(row.begin(), row.end(), 0.0f);
 		}
 	}
@@ -36,25 +61,25 @@ struct Canvas {
 	void setPixel(int x, int y, float value) {
 		if (x >= 0 && x < CanvasConfig::GRID_SIZE && y >= 0 &&
 			y < CanvasConfig::GRID_SIZE) {
-			grid[y][x] = Clamp(value, 0.0f, 1.0f);
+			this->grid[y][x] = Clamp(value, 0.0f, 1.0f);
 		}
 	}
 
 	float getPixel(int x, int y) const {
 		if (x >= 0 && x < CanvasConfig::GRID_SIZE && y >= 0 &&
 			y < CanvasConfig::GRID_SIZE) {
-			return grid[y][x];
+			return (this->grid[y][x]);
 		}
-		return 0.0f;
+		return (0);
 	}
 
 	std::vector<float> toVector() const {
 		std::vector<float> result;
 		result.reserve(CanvasConfig::GRID_SIZE * CanvasConfig::GRID_SIZE);
-		for (const auto &row : grid) {
+		for (const auto &row : this->grid) {
 			result.insert(result.end(), row.begin(), row.end());
 		}
-		return result;
+		return (result);
 	}
 };
 
@@ -281,6 +306,19 @@ static void handleKeyboardInput(Machine &machine) {
 		for (int i = 0; i < 10; ++i) {
 			machine.CNN.train(input, target);
 		}
+		const std::string directory =
+			"traindata/" + std::to_string(cnnState.currentLabel) + "/";
+		if (!std::filesystem::exists(directory)) {
+			std::filesystem::create_directory(directory);
+		}
+		for (int number = 0; number < 1000; number++) {
+			const std::string filename =
+				directory + "image_" + std::to_string(number) + ".png";
+			if (!std::filesystem::exists(filename)) {
+				cnnState.canvas.exportImageCanvas(filename);
+				break;
+			}
+		}
 		TraceLog(LOG_INFO, "Trained digit: %d", cnnState.currentLabel);
 	}
 
@@ -422,5 +460,5 @@ int handleCNNState(Machine &machine) {
 	DrawFPS(drawFpsPos.x, drawFpsPos.y);
 
 	EndDrawing();
-	return machine.state;
+	return (machine.state);
 }
