@@ -419,6 +419,8 @@ int handleCNNState(Machine &machine) {
 	// Back button
 	backButton(machine).draw();
 
+	DrawFPS(drawFpsPos.x, drawFpsPos.y);
+
 	EndDrawing();
 	return machine.state;
 }
