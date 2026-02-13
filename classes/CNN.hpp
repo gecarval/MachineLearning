@@ -48,9 +48,6 @@ class ConvNeuralNetwork {
 	NeuralNetwork		&getClassifier();
 	const NeuralNetwork &getClassifier() const;
 
-	void  setLearnRate(float lr);
-	float getLearnRate(void) const;
-
 	void  setConvLearnRate(float lr);
 	float getConvLearnRate(void) const;
 
