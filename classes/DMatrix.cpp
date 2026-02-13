@@ -1,4 +1,6 @@
 #include "DMatrix.hpp"
+#include <cstddef>
+#include <stdexcept>
 
 DMatrix::DMatrix() : rows(2), cols(2), matrix(this->rows * this->cols, 0.0f) {
 }
@@ -154,7 +156,7 @@ DMatrix DMatrix::operator*(const DMatrix &other) const {
 	}
 	// Automatically choose best implementation based on size
 	const size_t total_ops = this->rows * this->cols * other.cols;
-	if (total_ops < 1000000) {
+	if (total_ops < 4000000) {
 		return multiplyVectorized(other);
 	}
 	return multiplyOptimized(other);
@@ -228,6 +230,29 @@ std::vector<float> DMatrix::toVector() const {
 	return (this->matrix);
 }
 
+DMatrix DMatrix::averagePooling(const unsigned int poolSize) const {
+	if (this->rows < poolSize || this->cols < poolSize) {
+		throw std::runtime_error("Kernel Mult Mismatch");
+	}
+	const unsigned int rowDiff = this->rows - poolSize;
+	const unsigned int colDiff = this->cols - poolSize;
+	DMatrix			   output(this->rows - rowDiff, this->cols - colDiff);
+	for (size_t i = 0; i < output.rows; i++) {
+		for (size_t j = 0; j < output.cols; j++) {
+			float		 value = 0;
+			unsigned int amount = 0;
+			for (size_t ii = i; ii < i + poolSize; ii++) {
+				for (size_t jj = j; jj < j + poolSize; jj++) {
+					value += (*this)(ii, jj);
+					amount++;
+				}
+			}
+			output(i, j) = value / amount;
+		}
+	}
+	return (output);
+}
+
 DMatrix DMatrix::transpose() const {
 	DMatrix result(this->cols, this->rows);
 	for (size_t i = 0; i < this->rows; ++i) {
@@ -236,6 +261,54 @@ DMatrix DMatrix::transpose() const {
 		}
 	}
 	return (result);
+}
+
+DMatrix DMatrix::kernelMult(const DMatrix &kernel) const {
+	if (this->rows < kernel.rows || this->cols < kernel.cols) {
+		throw std::runtime_error("Kernel Mult Mismatch");
+	}
+	const unsigned int rowDiff = this->rows - kernel.rows;
+	const unsigned int colDiff = this->cols - kernel.cols;
+	DMatrix			   output(this->rows - rowDiff, this->cols - colDiff);
+	for (size_t i = 0; i < output.rows; i++) {
+		for (size_t j = 0; j < output.cols; j++) {
+			float val = 0;
+			for (size_t ii = i; ii < i + kernel.rows; ii++) {
+				for (size_t jj = j; jj < j + kernel.cols; jj++) {
+					val += (*this)(ii, jj) * kernel(ii, jj);
+				}
+			}
+			output(i, j) = val;
+		}
+	}
+	return (output);
+}
+
+DMatrix DMatrix::kernelMultHalfPadded(const DMatrix &kernel) const {
+	if (this->rows < kernel.rows || this->cols < kernel.cols) {
+		throw std::runtime_error("Kernel Mult Mismatch");
+	}
+	const unsigned int rowDiff = kernel.rows / 2;
+	const unsigned int colDiff = kernel.cols / 2;
+	DMatrix			   input(this->rows + rowDiff, this->cols + colDiff);
+	for (size_t i = 0; i < this->rows; i++) {
+		for (size_t j = 0; j < this->cols; j++) {
+			input(i + rowDiff, j + colDiff) = (*this)(i, j);
+		}
+	}
+	DMatrix output(this->rows, this->cols);
+	for (size_t i = 0; i < output.rows; i++) {
+		for (size_t j = 0; j < output.cols; j++) {
+			float val = 0;
+			for (size_t ii = i; ii < i + kernel.rows; ii++) {
+				for (size_t jj = j; jj < j + kernel.cols; jj++) {
+					val += input(ii, jj) * kernel(ii, jj);
+				}
+			}
+			output(i, j) = val;
+		}
+	}
+	return (output);
 }
 
 float DMatrix::totalSum() const {

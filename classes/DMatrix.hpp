@@ -41,7 +41,10 @@ class DMatrix {
 	const float &operator()(size_t row, size_t col) const;
 
 	std::vector<float> toVector() const;
+	DMatrix			   averagePooling(const unsigned int poolSize) const;
 	DMatrix			   transpose() const;
+	DMatrix			   kernelMult(const DMatrix &kernel) const;
+	DMatrix			   kernelMultHalfPadded(const DMatrix &kernel) const;
 	float			   totalSum() const;
 	void			   randomize();
 	void			   randomize(size_t fanIn);
