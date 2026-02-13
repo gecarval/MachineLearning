@@ -1,6 +1,6 @@
-build
-**/*.o
-machinelearn
 **/*.swp
+**/*.o
+build
 imgui.ini
+machinelearn
 NeuralNetwork.json
