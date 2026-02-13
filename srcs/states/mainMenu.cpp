@@ -1,8 +1,4 @@
 #include "../../includes/Machine.hpp"
-#include <algorithm>
-#include <cstddef>
-#include <exception>
-#include <string>
 
 void renderSettings(Machine &mch) {
 	// Available resolutions

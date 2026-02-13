@@ -1,8 +1,4 @@
 #include "../../includes/Machine.hpp"
-#include <exception>
-#include <filesystem>
-#include <memory>
-#include <string>
 
 // Canvas configuration
 namespace CanvasConfig {

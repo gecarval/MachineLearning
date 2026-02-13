@@ -7,7 +7,13 @@
 #include "../classes/ui/Button.hpp"
 #include "./imgui/imgui.h"
 #include "imgui/rlImGui.h"
+#include <algorithm>
 #include <chrono>
+#include <cstddef>
+#include <exception>
+#include <filesystem>
+#include <memory>
+#include <string>
 
 struct Line {
 	float x;
