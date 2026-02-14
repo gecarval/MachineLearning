@@ -34,7 +34,7 @@ float SiLU(const float x) {
 	const float y = std::abs(x) < max ? x : x > 0.0f ? max : -max;
 	const float z = y / (1.0f + std::exp(-y));
 	if (std::isnan(z) || std::isinf(z)) return 0.0f;
-	return z;
+	return (z);
 }
 
 float ReLU(const float x) {
@@ -50,12 +50,12 @@ float LeakyReLU(const float x) {
 
 float Step(const float x) {
 	if (std::isnan(x) || std::isinf(x)) return 0.0f;
-	return (x >= 0.0f) ? 1.0f : 0.0f;
+	return (x >= 0.0f ? 1.0f : 0.0f);
 }
 
 float Linear(const float x) {
 	if (std::isnan(x) || std::isinf(x)) return 0.0f;
-	return x;
+	return (x);
 }
 
 float DTanh(const float x) {
@@ -96,7 +96,7 @@ float DStep(const float x) {
 
 float DLinear(const float x) {
 	(void)x;
-	return 1.0f;
+	return (1.0f);
 }
 
 // Softmax function for multi-class classification
@@ -127,7 +127,7 @@ DMatrix Softmax(const DMatrix &x) {
 			}
 		}
 	}
-	return result;
+	return (result);
 }
 
 // Softmax derivative (simplified for cross-entropy loss)
@@ -137,7 +137,7 @@ DMatrix DSoftmax(const DMatrix &output, const DMatrix &error) {
 	// For cross-entropy loss, this is already handled correctly
 	// Just return the error as-is
 	(void)output;
-	return error;
+	return (error);
 }
 
 NeuralNetwork::NeuralNetwork()
@@ -254,7 +254,7 @@ DMatrix NeuralNetwork::feedForward(const DMatrix &input) const {
 			res.map(this->HiddenActivate);
 		}
 	}
-	return res;
+	return (res);
 }
 
 DMatrix NeuralNetwork::train(const DMatrix &inputArray,
@@ -283,7 +283,7 @@ DMatrix NeuralNetwork::train(const DMatrix &inputArray,
 	for (long i = static_cast<long>(this->hiddenLayerLen); i >= 0; i--) {
 		DMatrix gradient = outputs[i + 1];
 		// Compute gradient based on activation function
-		if (i == static_cast<int>(this->hiddenLayerLen)) {
+		if (i == static_cast<long>(this->hiddenLayerLen)) {
 			if (useSoftmax) {
 				// With softmax + cross-entropy, gradient is simply (output -
 				// target)
@@ -300,13 +300,13 @@ DMatrix NeuralNetwork::train(const DMatrix &inputArray,
 		gradient *= this->learnRate;
 		gradient.map(clampGradient);
 		// Compute weight delta
-		const DMatrix &prevOutput = outputs[i];
-		const DMatrix  weightDelta = gradient * prevOutput.transpose();
+		const DMatrix &prevOutput = outputs[i].transpose();
+		const DMatrix  weightDelta = gradient * prevOutput;
 		// Update weights and biases
 		this->weight[i] += weightDelta;
 		this->bias[i] += gradient;
 		// Propagate error backwards
-		layerError = this->weight[i].transpose() * gradient;
+		layerError = (this->weight[i].transpose()) *= gradient;
 	}
 	this->clampWeightsAndBiases();
 	return (layerError);
