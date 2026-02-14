@@ -26,6 +26,27 @@ struct Canvas {
 		  position{0, 0} {
 	}
 
+	bool importImageCanvas(const std::string &filename) {
+		Image canvasImage{};
+		canvasImage = LoadImage(filename.c_str());
+		if (canvasImage.data) {
+			TraceLog(LOG_INFO, "Canvas imported successfully from %s",
+					 filename.c_str());
+		} else {
+			TraceLog(LOG_ERROR, "Failed to import canvas image!");
+			return (true);
+		}
+		for (int y = 0; y < canvasImage.height; y++) {
+			for (int x = 0; x < canvasImage.width; x++) {
+				const Color colorVal = GetImageColor(canvasImage, x, y);
+				const float value = static_cast<float>(colorVal.r / 255.0f);
+				this->grid[y][x] = value;
+			}
+		}
+		UnloadImage(canvasImage);
+		return (false);
+	}
+
 	void exportImageCanvas(const std::string &filename) const {
 		const int width = CanvasConfig::GRID_SIZE;
 		const int height = CanvasConfig::GRID_SIZE;
@@ -283,7 +304,84 @@ static void handleCanvasInput(Canvas &canvas, float cellSize) {
 	}
 }
 
-static void saveGrid(void) {
+void loadTrainingData(
+	std::vector<std::pair<std::vector<float>, std::vector<float>>> &data) {
+	const std::string directory = "traindata/";
+	for (int number = 0; number < 10; number++) {
+		const std::string subdirectory = std::to_string(number);
+		for (int fileNumber = 0; fileNumber < 1000; fileNumber++) {
+			const std::string image = "/image_" + std::to_string(fileNumber);
+			const std::string filename = directory + subdirectory + image;
+			const std::string extension = ".png";
+			if (!std::filesystem::exists(filename + extension)) {
+				break;
+			}
+			Canvas tempCanvas;
+			if (!tempCanvas.importImageCanvas(filename + extension)) {
+				std::vector<float> input = tempCanvas.toVector();
+				std::vector<float> target(10, 0.0f);
+				target[number] = 1.0f;
+				data.push_back(std::make_pair(input, target));
+			}
+		}
+	}
+}
+
+void DrawLoadingBar(int currentEpoch, int totalEpochs, int currentIndex,
+					int totalItems, double averageEpochTime) {
+	const float progress =
+		static_cast<float>(currentIndex) / static_cast<float>(totalItems);
+	const int	 barWidth = 400;
+	const int	 barHeight = 30;
+	const int	 x = (GetScreenWidth() - barWidth) / 2;
+	const int	 y = (GetScreenHeight() - barHeight) / 2;
+	const double totalTimeleftinEpoch =
+		averageEpochTime * (totalItems - currentIndex);
+
+	ClearBackground(RAYWHITE);
+
+	DrawText(
+		TextFormat("Training... Epoch %d/%d", currentEpoch + 1, totalEpochs), x,
+		y - 40, 20, BLACK);
+
+	DrawText(
+		TextFormat("Estimated time left: %.1f seconds", totalTimeleftinEpoch),
+		x, y + 40, 20, DARKGRAY);
+
+	DrawRectangle(x, y, barWidth, barHeight, LIGHTGRAY);
+	DrawRectangle(x, y, static_cast<int>(barWidth * progress), barHeight, BLUE);
+	DrawRectangleLinesEx({(float)x, (float)y, barWidth, barHeight}, 2.0f,
+						 BLACK);
+}
+
+void trainModel(Machine &machine, const int epoch) {
+	std::vector<std::pair<std::vector<float>, std::vector<float>>> trainingData;
+	Button cancelTrainButton(GetScreenWidth() / 2.0f - 50,
+							 GetScreenHeight() / 2.0f + 80, 100, 30, "Cancel");
+	loadTrainingData(trainingData);
+	double averageEpochTime = 0.0;
+	for (int e = 0; e < epoch; ++e) {
+		double startTime{};
+		for (long i = 0; i < static_cast<long>(trainingData.size()); ++i) {
+			startTime = GetTime();
+			machine.CNN.train(trainingData[i].first, trainingData[i].second);
+			averageEpochTime =
+				(averageEpochTime * i + (GetTime() - startTime)) / (i + 1);
+			BeginDrawing();
+			DrawLoadingBar(e, epoch, i, trainingData.size(), averageEpochTime);
+			cancelTrainButton.update();
+			cancelTrainButton.draw();
+			EndDrawing();
+			if (cancelTrainButton.isButtonPressed()) {
+				TraceLog(LOG_INFO, "Training cancelled at epoch %d, item %ld",
+						 e + 1, i);
+				return;
+			}
+		}
+	}
+}
+
+void saveGrid(void) {
 	const std::string directory = "traindata/";
 	const std::string subdirectory = std::to_string(cnnState.currentLabel);
 	try {
@@ -327,12 +425,23 @@ static void handleKeyboardInput(Machine &machine) {
 		for (int i = 0; i < 10; ++i) {
 			machine.CNN.train(input, target);
 		}
-		saveGrid();
 		TraceLog(LOG_INFO, "Trained digit: %d", cnnState.currentLabel);
 	}
 
+	if (IsKeyPressed(KEY_LEFT_SHIFT) && IsKeyDown(KEY_LEFT_CONTROL) &&
+		IsKeyPressed(KEY_S)) {
+		TraceLog(LOG_INFO, "Saved grid for training.");
+		saveGrid();
+	}
+
+	if (IsKeyPressed(KEY_T) && IsKeyDown(KEY_LEFT_CONTROL)) {
+		static const int epoch = 5;
+		trainModel(machine, epoch);
+		TraceLog(LOG_INFO, "Trained digit: %d", epoch);
+	}
+
 	// Predict
-	if (IsKeyPressed(KEY_P) || true) {
+	if (IsKeyPressed(KEY_P)) {
 		std::vector<float> input = cnnState.canvas.toVector();
 		cnnState.predictions = machine.CNN.feedForward(input);
 		cnnState.isPredicting = true;
@@ -460,8 +569,11 @@ int handleCNNState(Machine &machine) {
 		instrPos.x, instrPos.y + lineSpacing, instrSize, DARKGRAY);
 	DrawText("Mouse: Left (Draw) | Right (Erase)", instrPos.x,
 			 instrPos.y + lineSpacing * 2, instrSize, DARKGRAY);
-	DrawText("Ctrl+S (Save) | Ctrl+L (Load)", instrPos.x,
+	DrawText("Ctrl+S (Save AI) | Ctrl+L (Load AI)", instrPos.x,
 			 instrPos.y + lineSpacing * 3, instrSize, DARKGRAY);
+	DrawText(
+		"Ctrl+T (Train on Database) | Ctrl+Shift+S (Save Grid on Database)",
+		instrPos.x, instrPos.y + lineSpacing * 4, instrSize, DARKGRAY);
 
 	// Back button
 	backButton(machine).draw();
