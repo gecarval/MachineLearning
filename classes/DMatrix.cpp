@@ -230,6 +230,27 @@ std::vector<float> DMatrix::toVector() const {
 	return (this->matrix);
 }
 
+DMatrix DMatrix::maxPooling(const unsigned int poolSize) const {
+	if (this->rows < poolSize || this->cols < poolSize) {
+		throw std::runtime_error("Kernel Mult Mismatch");
+	}
+	const unsigned int rowDiff = this->rows - poolSize;
+	const unsigned int colDiff = this->cols - poolSize;
+	DMatrix			   output(this->rows - rowDiff, this->cols - colDiff);
+	for (size_t i = 0; i < output.rows; i++) {
+		for (size_t j = 0; j < output.cols; j++) {
+			float maxVal = (*this)(i, j);
+			for (size_t ii = i; ii < i + poolSize; ii++) {
+				for (size_t jj = j; jj < j + poolSize; jj++) {
+					maxVal = std::max(maxVal, (*this)(ii, jj));
+				}
+			}
+			output(i, j) = maxVal;
+		}
+	}
+	return (output);
+}
+
 DMatrix DMatrix::averagePooling(const unsigned int poolSize) const {
 	if (this->rows < poolSize || this->cols < poolSize) {
 		throw std::runtime_error("Kernel Mult Mismatch");
