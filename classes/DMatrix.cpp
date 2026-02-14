@@ -2,7 +2,7 @@
 #include <cstddef>
 #include <stdexcept>
 
-DMatrix::DMatrix() : rows(2), cols(2), matrix(this->rows * this->cols, 0.0f) {
+DMatrix::DMatrix() : rows(0), cols(0), matrix(0) {
 }
 
 DMatrix::DMatrix(size_t row, size_t col)
@@ -92,7 +92,7 @@ DMatrix DMatrix::multiplyVectorized(const DMatrix &other) const {
 			}
 		}
 	}
-	return result;
+	return (result);
 }
 
 DMatrix DMatrix::multiplyOptimized(const DMatrix &other) const {
@@ -146,7 +146,7 @@ DMatrix DMatrix::multiplyOptimized(const DMatrix &other) const {
 			}
 		}
 	}
-	return result;
+	return (result);
 }
 
 DMatrix DMatrix::operator*(const DMatrix &other) const {
@@ -157,9 +157,9 @@ DMatrix DMatrix::operator*(const DMatrix &other) const {
 	// Automatically choose best implementation based on size
 	const size_t total_ops = this->rows * this->cols * other.cols;
 	if (total_ops < 4000000) {
-		return multiplyVectorized(other);
+		return (multiplyVectorized(other));
 	}
-	return multiplyOptimized(other);
+	return (multiplyOptimized(other));
 }
 
 DMatrix &DMatrix::operator+=(const DMatrix &other) {
