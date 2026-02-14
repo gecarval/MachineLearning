@@ -267,15 +267,15 @@ DMatrix DMatrix::kernelMult(const DMatrix &kernel) const {
 	if (this->rows < kernel.rows || this->cols < kernel.cols) {
 		throw std::runtime_error("Kernel Mult Mismatch");
 	}
-	const unsigned int rowDiff = this->rows - kernel.rows;
-	const unsigned int colDiff = this->cols - kernel.cols;
-	DMatrix			   output(this->rows - rowDiff, this->cols - colDiff);
+	const size_t outRows = this->rows - kernel.rows + 1;
+	const size_t outCols = this->cols - kernel.cols + 1;
+	DMatrix		 output(outRows, outCols);
 	for (size_t i = 0; i < output.rows; i++) {
 		for (size_t j = 0; j < output.cols; j++) {
 			float val = 0;
-			for (size_t ii = i; ii < i + kernel.rows; ii++) {
-				for (size_t jj = j; jj < j + kernel.cols; jj++) {
-					val += (*this)(ii, jj) * kernel(ii, jj);
+			for (size_t ki = 0; ki < kernel.rows; ki++) {
+				for (size_t kj = 0; kj < kernel.cols; kj++) {
+					val += (*this)(ki + i, kj + j) * kernel(ki, kj);
 				}
 			}
 			output(i, j) = val;
