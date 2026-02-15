@@ -2,7 +2,7 @@
 #define MACHINE_HPP
 
 // INCLUDES
-#include "../classes/NeuralNetwork.hpp"
+#include "../classes/CNN.hpp"
 #include "../classes/Perceptron.hpp"
 #include "../classes/ui/Button.hpp"
 #include "./imgui/imgui.h"
@@ -42,7 +42,7 @@ struct Machine {
 	std::vector<float>	 desired;
 	Perceptron			 brain;
 	NeuralNetwork		 NN;
-	NeuralNetwork		 CNN;
+	ConvNeuralNetwork	 CNN;
 	Line				 line;
 };
 

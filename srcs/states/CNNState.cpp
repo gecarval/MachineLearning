@@ -441,7 +441,7 @@ static void handleKeyboardInput(Machine &machine) {
 	}
 
 	// Predict
-	if (IsKeyPressed(KEY_P)) {
+	if (IsKeyPressed(KEY_P) || true) {
 		std::vector<float> input = cnnState.canvas.toVector();
 		cnnState.predictions = machine.CNN.feedForward(input);
 		cnnState.isPredicting = true;
@@ -461,13 +461,15 @@ static void handleKeyboardInput(Machine &machine) {
 
 	// Reset network
 	if (IsKeyPressed(KEY_R)) {
-		const float learnRate = machine.CNN.getLearnRate();
-		machine.CNN = NeuralNetwork(machine.CNN.getNumberOfInputsNodes(),
-									machine.CNN.getNumberOfHiddenNodes(),
-									machine.CNN.getNumberOfOutputsNodes(),
-									machine.CNN.getHiddenLayerLength());
-		machine.CNN.setLearnRate(learnRate);
-		machine.CNN.enableSoftmax(true);
+		const float learnRate = machine.CNN.getClassifier().getLearnRate();
+		machine.CNN = ConvNeuralNetwork(
+			machine.CNN.getInputWidth(), machine.CNN.getInputHeight(),
+			machine.CNN.getNumFilters(), machine.CNN.getKernelSize(),
+			machine.CNN.getKernelSize() / 2,
+			machine.CNN.getClassifier().getNumberOfHiddenNodes(),
+			machine.CNN.getClassifier().getNumberOfOutputsNodes(),
+			machine.CNN.getClassifier().getHiddenLayerLength());
+		machine.CNN.getClassifier().setLearnRate(learnRate);
 		cnnState.isPredicting = false;
 		TraceLog(LOG_INFO, "CNN network reset");
 	}
@@ -483,9 +485,8 @@ static void handleKeyboardInput(Machine &machine) {
 	// Save/Load model
 	if (IsKeyPressed(KEY_S) && IsKeyDown(KEY_LEFT_CONTROL)) {
 		try {
-			// NeuralNetwork::serialize(machine.CNN.getClassifier(),
-			// "CNN.json");
-			NeuralNetwork::serialize(machine.CNN, "CNN.json");
+			// ConvNeuralNetwork::serialize(machine.CNN,
+			// "ConvNeuralNetwork.json");
 			TraceLog(LOG_INFO, "Model saved to CNN.json");
 		} catch (const std::exception &error) {
 			TraceLog(LOG_ERROR, "Save failed: %s", error.what());
@@ -494,8 +495,7 @@ static void handleKeyboardInput(Machine &machine) {
 
 	if (IsKeyPressed(KEY_L) && IsKeyDown(KEY_LEFT_CONTROL)) {
 		try {
-			// machine.CNN.setClassifier(NeuralNetwork::deserialize("CNN.json"));
-			machine.CNN = NeuralNetwork::deserialize("CNN.json");
+			// machine.CNN.setClassifier(NeuralNetwork::deserialize("ConvNeuralNetwork.json"));
 			cnnState.isPredicting = false;
 			TraceLog(LOG_INFO, "Model loaded from CNN.json");
 		} catch (const std::runtime_error &error) {

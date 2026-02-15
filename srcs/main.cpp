@@ -70,28 +70,23 @@ void initEngine(Machine &machine) {
 							   NN_HIDDEN_LAYERS);
 	machine.NN.setLearnRate(NN_LEARNING_RATE);
 	machine.NN.enableSoftmax(true);
-	/*constexpr unsigned int CANVAS_WIDTH = 24;
-	constexpr unsigned int CANVAS_HEIGHT = 24;
-	constexpr unsigned int CNN_FILTERS = 1;
-	constexpr unsigned int CNN_KERNEL_SIZE = 4;
-	constexpr unsigned int CNN_HIDDEN_LAYERS = 1;
-	constexpr unsigned int CNN_OUTPUT_NODES = 10; // Digits 0-9
-	constexpr float		   CNN_LEARNING_RATE = 0.001f;
-	machine.CNN =
-		ConvNeuralNetwork(CANVAS_WIDTH, CANVAS_HEIGHT, CNN_FILTERS,
-						  CNN_KERNEL_SIZE, CNN_HIDDEN_LAYERS, CNN_OUTPUT_NODES);
-	machine.CNN.setLearnRate(CNN_LEARNING_RATE);*/
 	// CNN Settings (for digit recognition - 10 classes)
-	constexpr unsigned int CNN_INPUT_NODES = 576; // 24x24 pixels
+	constexpr unsigned int CANVAS_WIDTH = 24;
+	constexpr unsigned int CANVAS_HEIGHT = 24;
+	constexpr unsigned int CNN_FILTERS = 4;
+	constexpr unsigned int CNN_FILTERS_DEPHT = 2;
+	constexpr unsigned int CNN_KERNEL_SIZE = 5;
+	constexpr unsigned int CNN_MIN_KERNEL_SIZE =
+		CNN_KERNEL_SIZE / 2 < 2 ? 2 : CNN_KERNEL_SIZE / 2;
 	constexpr unsigned int CNN_HIDDEN_NODES = 20000;
 	constexpr unsigned int CNN_OUTPUT_NODES = 10; // Digits 0-9
-	constexpr unsigned int CNN_HIDDEN_LAYERS = 1;
+	constexpr unsigned int CNN_HIDDEN_LAYERS_LEN = 1;
 	constexpr float		   CNN_LEARNING_RATE = 0.001f;
-	machine.CNN = NeuralNetwork(CNN_INPUT_NODES, CNN_HIDDEN_NODES,
-								CNN_OUTPUT_NODES, CNN_HIDDEN_LAYERS);
-	machine.CNN.setLearnRate(CNN_LEARNING_RATE);
-	// USE softmax for multi-class classification (10 outputs)
-	machine.CNN.enableSoftmax(true);
+	machine.CNN = ConvNeuralNetwork(CANVAS_WIDTH, CANVAS_HEIGHT, CNN_FILTERS,
+									CNN_FILTERS_DEPHT, CNN_KERNEL_SIZE,
+									CNN_MIN_KERNEL_SIZE, CNN_HIDDEN_NODES,
+									CNN_OUTPUT_NODES, CNN_HIDDEN_LAYERS_LEN);
+	machine.CNN.getClassifier().setLearnRate(CNN_LEARNING_RATE);
 	// Initialize state and line
 	machine.state = STATE::MENU::MAIN;
 	machine.line = initialLine;
