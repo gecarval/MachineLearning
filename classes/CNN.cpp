@@ -1,5 +1,5 @@
 #include "./CNN.hpp"
-#include <cstddef>
+#include <vector>
 
 ConvNeuralNetwork::ConvNeuralNetwork()
 	: inputWidth(0), inputHeight(0), numFilters(0), filtersDepth(0),
@@ -10,7 +10,7 @@ ConvNeuralNetwork::ConvNeuralNetwork(const size_t imgW, const size_t imgH,
 									 const size_t kSize,
 									 const size_t HiddenNodes,
 									 const size_t outputNodes)
-	: inputWidth(imgW), inputHeight(imgH), numFilters(kSize - 1),
+	: inputWidth(imgW), inputHeight(imgH), numFilters(3), filtersDepth(1),
 	  kernelSize(kSize), convLearnRate(0.001f) {
 	// Basic validation
 	if (imgW < kSize || imgH < kSize) {
@@ -18,27 +18,35 @@ ConvNeuralNetwork::ConvNeuralNetwork(const size_t imgW, const size_t imgH,
 			"Image dimensions must be at least as large as kernel size");
 	}
 	// 1. Initialize Kernels with random values
-	this->kernels.reserve(this->numFilters);
-	for (size_t i = 0; i < this->numFilters; ++i) {
-		size_t	currentKernelSize = this->kernelSize - i;
-		DMatrix k(currentKernelSize, currentKernelSize);
-		k.randomize(currentKernelSize * currentKernelSize);
-		this->kernels.push_back(k);
-		this->kernelBiases.push_back(0.01f);
+	this->kernels.resize(this->numFilters);
+	this->kernelBiases.resize(this->numFilters);
+	for (size_t i = 0; i < this->numFilters; i++) {
+		this->kernels.reserve(this->filtersDepth);
+		this->kernelBiases.reserve(this->filtersDepth);
+		for (size_t j = 0; j < this->filtersDepth; j++) {
+			const size_t currentKernelSize = this->kernelSize;
+			DMatrix		 k(currentKernelSize, currentKernelSize);
+			k.randomize(currentKernelSize * currentKernelSize);
+			this->kernels[i].push_back(k);
+			this->kernelBiases[i].push_back(0.01f);
+		}
 	}
 	// NOTE: Assuming no padding (output is smaller than input)
 	// 2. Calculate the size of the flattened output after convolution
-	size_t convOutW = imgW;
-	size_t convOutH = imgH;
-	for (size_t i = 0; i < this->numFilters; ++i) {
-		convOutW = convOutW - this->kernels[i].getColLength() + 1;
-		convOutH = convOutH - this->kernels[i].getRowLength() + 1;
+	// and after 2x2 pooling matrix;
+	long convOutW = imgW;
+	long convOutH = imgH;
+	for (long i = 0; i < static_cast<long>(this->filtersDepth); ++i) {
+		convOutW = convOutW - this->kernels[0][i].getColLength() + 1;
+		convOutH = convOutH - this->kernels[0][i].getRowLength() + 1;
 	}
+	convOutW /= 2;
+	convOutH /= 2;
 	if (convOutW <= 0 || convOutH <= 0) {
 		throw std::invalid_argument("Kernel size and number of filters result "
 									"in invalid output dimensions");
 	}
-	size_t flattenedSize = convOutW * convOutH;
+	long flattenedSize = convOutW * convOutH * this->numFilters;
 	// 3. Initialize the internal NeuralNetwork attribute
 	this->classifier =
 		NeuralNetwork(flattenedSize, HiddenNodes, outputNodes, 1);
@@ -47,58 +55,73 @@ ConvNeuralNetwork::ConvNeuralNetwork(const size_t imgW, const size_t imgH,
 }
 
 ConvNeuralNetwork::ConvNeuralNetwork(const size_t imgW, const size_t imgH,
-									 const size_t filters, const size_t kSize,
-									 const size_t minKSize,
+									 const size_t filters,
+									 const size_t filtersDepth,
+									 const size_t kSize, const size_t minKSize,
 									 const size_t HiddenNodes,
 									 const size_t outputNodes,
 									 const size_t hiddenLayerLen)
 	: inputWidth(imgW), inputHeight(imgH), numFilters(filters),
-	  kernelSize(kSize), convLearnRate(0.001f) {
+	  filtersDepth(filtersDepth), kernelSize(kSize), convLearnRate(0.001f) {
 	// Basic validation
 	if (kSize < minKSize) {
 		throw std::invalid_argument(
 			"Kernel size must be at least as large as minKSize");
 	}
-	if (filters == 0) {
-		throw std::invalid_argument("Number of filters must be greater than 0");
+	if (kSize < 2) {
+		throw std::runtime_error("Minimum kernel size must be greater than 1");
+	}
+	if (filters == 0 || filtersDepth == 0) {
+		throw std::invalid_argument(
+			"Number of filters and depth must be greater than 0");
 	}
 	if (imgW < kSize || imgH < kSize) {
 		throw std::invalid_argument(
 			"Image dimensions must be at least as large as kernel size");
 	}
 	// 1. Initialize Kernels with random values
-	this->kernels.reserve(this->numFilters);
-	for (size_t i = 0; i < this->numFilters; ++i) {
-		const size_t currentKernelSize =
-			this->kernelSize - i < minKSize ? minKSize : this->kernelSize - i;
-		DMatrix k(currentKernelSize, currentKernelSize);
-		k.randomize(currentKernelSize * currentKernelSize);
-		this->kernels.push_back(k);
-		this->kernelBiases.push_back(0.01f);
+	this->kernels.resize(this->numFilters);
+	this->kernelBiases.resize(this->numFilters);
+	for (size_t i = 0; i < this->numFilters; i++) {
+		this->kernels[i].reserve(this->filtersDepth);
+		this->kernelBiases[i].reserve(this->filtersDepth);
+		for (size_t j = 0; j < this->filtersDepth; j++) {
+			const size_t currentKernelSize = this->kernelSize - j < minKSize
+												 ? minKSize
+												 : this->kernelSize - j;
+			DMatrix		 k(currentKernelSize, currentKernelSize);
+			k.randomize(currentKernelSize * currentKernelSize);
+			this->kernels[i].push_back(k);
+			this->kernelBiases[i].push_back(0.01f);
+		}
 	}
 	// NOTE: Assuming no padding (output is smaller than input)
 	// 2. Calculate the size of the flattened output after convolution
+	// and after 2x2 pooling matrix;
 	long convOutW = imgW;
 	long convOutH = imgH;
-	for (long i = 0; i < static_cast<long>(this->numFilters); ++i) {
-		convOutW = convOutW - this->kernels[i].getColLength() + 1;
-		convOutH = convOutH - this->kernels[i].getRowLength() + 1;
+	for (long i = 0; i < static_cast<long>(this->filtersDepth); ++i) {
+		convOutW = convOutW - this->kernels[0][i].getColLength() + 1;
+		convOutH = convOutH - this->kernels[0][i].getRowLength() + 1;
 	}
+	convOutW /= 2;
+	convOutH /= 2;
 	if (convOutW <= 0 || convOutH <= 0) {
 		throw std::invalid_argument("Kernel size and number of filters result "
 									"in invalid output dimensions");
 	}
-	long flattenedSize = convOutW * convOutH;
+	long flattenedSize = convOutW * convOutH * this->numFilters;
 	// 3. Initialize the internal NeuralNetwork attribute
 	this->classifier =
 		NeuralNetwork(flattenedSize, HiddenNodes, outputNodes, hiddenLayerLen);
 	this->classifier.setLearnRate(0.001f);
 	this->classifier.enableSoftmax(true);
 	std::cout << "ConvNN initialized with input (" << imgW << "x" << imgH
-			  << "), " << filters << " filters, kernel size " << kSize
-			  << "input size " << flattenedSize << ", hidden layer nodes "
-			  << HiddenNodes << ", output nodes " << outputNodes
-			  << ", hidden layers length " << hiddenLayerLen << std::endl;
+			  << "), " << filters << " filters and," << filtersDepth
+			  << "depth, kernel size " << kSize << " NeuralNetwork input size "
+			  << flattenedSize << ", hidden layer nodes " << HiddenNodes
+			  << ", output nodes " << outputNodes << ", hidden layers length "
+			  << hiddenLayerLen << std::endl;
 }
 
 ConvNeuralNetwork::ConvNeuralNetwork(const ConvNeuralNetwork &other)
@@ -131,25 +154,40 @@ ConvNeuralNetwork::~ConvNeuralNetwork() {
 // Simpler version for inference only (no backprop data needed)
 // Apply each kernel to the input image and return a DMatrix
 DMatrix ConvNeuralNetwork::performConvolution(const DMatrix &inputImage) const {
-	// Variable to store output dimensions for each filter
-	size_t convOutW = this->inputWidth;
-	size_t convOutH = this->inputHeight;
-	// Start with the input image as the initial "feature map"
-	DMatrix convResult(inputImage);
 	// Apply each kernel to each feature map sequentially
-	for (size_t f = 0; f < this->numFilters; ++f) {
-		// Calculate output dimensions for each filter
-		convOutW = convOutW - this->kernels[f].getColLength() + 1;
-		convOutH = convOutH - this->kernels[f].getRowLength() + 1;
-		// Convolution operation
-		convResult = convResult.kernelMult(this->kernels[f]);
-		// Add biases
-		convResult += this->kernelBiases[f];
-		// Apply LeakyReLU activation
-		convResult.map(LeakyReLU);
+	std::vector<DMatrix> filteredMaps;
+	filteredMaps.reserve(this->numFilters);
+	for (size_t i = 0; i < this->numFilters; i++) {
+		// Start with the input image as the initial "feature map"
+		DMatrix convResult(inputImage);
+		// Variable to store output dimensions for each filter
+		size_t convOutW = this->inputWidth;
+		size_t convOutH = this->inputHeight;
+		for (size_t f = 0; f < this->filtersDepth; ++f) {
+			// Calculate output dimensions for each filter
+			convOutW = convOutW - this->kernels[i][f].getColLength() + 1;
+			convOutH = convOutH - this->kernels[i][f].getRowLength() + 1;
+			// Convolution operation
+			convResult = convResult.kernelMult(this->kernels[i][f]);
+			// Add biases
+			convResult += this->kernelBiases[i][f];
+			// Apply LeakyReLU activation
+			convResult.map(LeakyReLU);
+		}
+		filteredMaps.push_back(convResult.maxPooling(2));
 	}
 	// Flatten the final feature map to feed into the NeuralNetwork
-	return (convResult);
+	std::vector<float> flatResult;
+	flatResult.reserve(filteredMaps[0].getColLength() *
+					   filteredMaps[0].getRowLength() * this->numFilters);
+	for (size_t i = 0; i < this->numFilters; i++) {
+		for (size_t j = 0; j < filteredMaps[i].getRowLength(); j++) {
+			for (size_t k = 0; k < filteredMaps[i].getColLength(); k++) {
+				flatResult.push_back(filteredMaps[i](j, k));
+			}
+		}
+	}
+	return (flatResult);
 }
 
 // High-level feedforward: Convolution -> Flatten -> NeuralNetwork
@@ -173,34 +211,49 @@ ConvNeuralNetwork::feedForward(const DMatrix &inputImage) const {
 DMatrix ConvNeuralNetwork::performConvolution(
 	const DMatrix &inputImage, std::vector<DMatrix> &featureMaps,
 	std::vector<DMatrix> &preActivation) const {
-	// Variable to store output dimensions for each filter
-	size_t convOutW = this->inputWidth;
-	size_t convOutH = this->inputHeight;
 	// Clear and reserve output vectors
 	featureMaps.clear();
 	preActivation.clear();
 	featureMaps.reserve(this->numFilters);
 	preActivation.reserve(this->numFilters);
-	// Start with the input image as the initial "feature map"
-	DMatrix convResult = inputImage;
 	// Apply each kernel to each feature map sequentially
-	for (size_t f = 0; f < this->numFilters; ++f) {
-		// Calculate output dimensions for each filter
-		convOutW = convOutW - this->kernels[f].getColLength() + 1;
-		convOutH = convOutH - this->kernels[f].getRowLength() + 1;
-		// Convolution operation
-		convResult = convResult.kernelMult(this->kernels[f]);
-		// Add biases
-		convResult += this->kernelBiases[f];
-		// Store pre-activation for backprop
-		preActivation.push_back(convResult);
-		// Apply LeakyReLU activation
-		convResult.map(LeakyReLU);
-		// Store feature map for backprop
-		featureMaps.push_back(convResult);
+	std::vector<DMatrix> filteredMaps;
+	filteredMaps.reserve(this->numFilters);
+	for (size_t i = 0; i < this->numFilters; i++) {
+		// Start with the input image as the initial "feature map"
+		DMatrix convResult(inputImage);
+		// Variable to store output dimensions for each filter
+		size_t convOutW = this->inputWidth;
+		size_t convOutH = this->inputHeight;
+		for (size_t f = 0; f < this->filtersDepth; ++f) {
+			// Calculate output dimensions for each filter
+			convOutW = convOutW - this->kernels[i][f].getColLength() + 1;
+			convOutH = convOutH - this->kernels[i][f].getRowLength() + 1;
+			// Convolution operation
+			convResult = convResult.kernelMult(this->kernels[i][f]);
+			// Add biases
+			convResult += this->kernelBiases[i][f];
+			// Store pre-activation for backprop
+			preActivation.push_back(convResult);
+			// Apply LeakyReLU activation
+			convResult.map(LeakyReLU);
+			// Store feature map for backprop
+			featureMaps.push_back(convResult);
+		}
+		filteredMaps.push_back(convResult.maxPooling(2));
 	}
-	// Final feature map to feed into the NeuralNetwork
-	return (convResult);
+	// Flatten the final feature map to feed into the NeuralNetwork
+	std::vector<float> flatResult;
+	flatResult.reserve(filteredMaps[0].getColLength() *
+					   filteredMaps[0].getRowLength() * this->numFilters);
+	for (size_t i = 0; i < this->numFilters; i++) {
+		for (size_t j = 0; j < filteredMaps[i].getRowLength(); j++) {
+			for (size_t k = 0; k < filteredMaps[i].getColLength(); k++) {
+				flatResult.push_back(filteredMaps[i](j, k));
+			}
+		}
+	}
+	return (flatResult);
 }
 
 void ConvNeuralNetwork::train(const DMatrix &inputImage,
@@ -221,25 +274,41 @@ void ConvNeuralNetwork::train(const DMatrix &inputImage,
 	const std::vector<float> &nnOutput =
 		this->classifier.feedForward(convOutput.toVector());
 	// 3. Backpropagate error through the NeuralNetwork
-	const DMatrix &error =
+	const DMatrix &nnError =
 		this->classifier.train(convOutput.toVector(), target);
+	std::vector<DMatrix> errorsPerFilter;
+	errorsPerFilter.reserve(this->filtersDepth);
+	long convOutW = this->inputWidth;
+	long convOutH = this->inputHeight;
+	for (long i = 0; i < static_cast<long>(this->filtersDepth); ++i) {
+		convOutW = convOutW - this->kernels[0][i].getColLength() + 1;
+		convOutH = convOutH - this->kernels[0][i].getRowLength() + 1;
+	}
+	const size_t mapH = convOutH / 2; // The height after pooling
+	const size_t mapW = convOutW / 2; // The width after pooling
 	// 4. Convert error from NeuralNetwork back to convolutional layer format
-	DMatrix errorFromFC(convOutput.getRowLength(), convOutput.getColLength());
-	for (size_t i = 0; i < errorFromFC.getRowLength(); ++i) {
-		for (size_t j = 0; j < errorFromFC.getColLength(); ++j) {
-			errorFromFC.setValue(i, j,
-								 error(i * errorFromFC.getColLength() + j, 0));
+	// for each filter
+	for (size_t i = 0; i < this->numFilters; i++) {
+		DMatrix e(mapH, mapW);
+		for (size_t r = 0; r < mapH; r++) {
+			for (size_t c = 0; c < mapW; c++) {
+				e(r, c) = nnError(i * (mapH * mapW) + (r * mapW + c), 0);
+			}
 		}
+		errorsPerFilter.push_back(e);
 	}
 	// 5. Backpropagate error through convolutional layers
-	this->backpropConvolution(imageMatrix, featureMaps, preActivation,
-							  errorFromFC);
+	for (long i = this->numFilters; i >= 0; i++) {
+		this->backpropConvolution(imageMatrix, featureMaps, preActivation,
+								  errorsPerFilter[i], i);
+	}
 }
 
 // Backpropagate error through convolutional layers
 void ConvNeuralNetwork::backpropConvolution(
 	const DMatrix &imageMatrix, const std::vector<DMatrix> &featureMaps,
-	const std::vector<DMatrix> &preActivation, const DMatrix &errorFromFC) {
+	const std::vector<DMatrix> &preActivation, const DMatrix &errorFromFC,
+	const size_t i) {
 
 	DMatrix currentError = errorFromFC;
 
@@ -257,8 +326,8 @@ void ConvNeuralNetwork::backpropConvolution(
 
 		// 3. Gradiente do Kernel (dW)
 		// É a convolução entre o Input da camada e o dZ
-		DMatrix dW(this->kernels[f].getRowLength(),
-				   this->kernels[f].getColLength());
+		DMatrix dW(this->kernels[i][f].getRowLength(),
+				   this->kernels[i][f].getColLength());
 		for (size_t m = 0; m < dW.getRowLength(); ++m) {
 			for (size_t n = 0; n < dW.getColLength(); ++n) {
 				float sum = 0;
@@ -291,17 +360,19 @@ void ConvNeuralNetwork::backpropConvolution(
 					float dZ_val = dZ(di, dj);
 					// Distribute this error to all positions in dA_prev that
 					// contributed to this output
-					for (size_t m = 0; m < this->kernels[f].getRowLength();
+					for (size_t m = 0; m < this->kernels[i][f].getRowLength();
 						 ++m) {
-						for (size_t n = 0; n < this->kernels[f].getColLength();
-							 ++n) {
+						for (size_t n = 0;
+							 n < this->kernels[i][f].getColLength(); ++n) {
 							size_t ai = di + m;
 							size_t aj = dj + n;
 							// Flip the kernel (rotate 180 degrees)
-							size_t km = this->kernels[f].getRowLength() - 1 - m;
-							size_t kn = this->kernels[f].getColLength() - 1 - n;
+							size_t km =
+								this->kernels[i][f].getRowLength() - 1 - m;
+							size_t kn =
+								this->kernels[i][f].getColLength() - 1 - n;
 							dA_prev(ai, aj) +=
-								dZ_val * this->kernels[f](km, kn);
+								dZ_val * this->kernels[i][f](km, kn);
 						}
 					}
 				}
@@ -310,8 +381,8 @@ void ConvNeuralNetwork::backpropConvolution(
 		}
 
 		// 5. Atualizar os pesos do Kernel e Bias (Gradient Descent)
-		this->kernels[f] -= (dW * this->convLearnRate);
-		this->kernelBiases[f] -= (dZ.totalSum() * this->convLearnRate);
+		this->kernels[i][f] -= (dW * this->convLearnRate);
+		this->kernelBiases[i][f] -= (dZ.totalSum() * this->convLearnRate);
 	}
 }
 
@@ -355,10 +426,11 @@ size_t ConvNeuralNetwork::getKernelSize() const {
 	return (this->kernelSize);
 }
 
-const std::vector<DMatrix> &ConvNeuralNetwork::getKernels() const {
+const std::vector<std::vector<DMatrix>> &ConvNeuralNetwork::getKernels() const {
 	return (this->kernels);
 }
 
-const std::vector<float> &ConvNeuralNetwork::getKernelBiases() const {
+const std::vector<std::vector<float>> &
+ConvNeuralNetwork::getKernelBiases() const {
 	return (this->kernelBiases);
 }

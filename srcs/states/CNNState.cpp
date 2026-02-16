@@ -464,8 +464,8 @@ static void handleKeyboardInput(Machine &machine) {
 		const float learnRate = machine.CNN.getClassifier().getLearnRate();
 		machine.CNN = ConvNeuralNetwork(
 			machine.CNN.getInputWidth(), machine.CNN.getInputHeight(),
-			machine.CNN.getNumFilters(), machine.CNN.getKernelSize(),
-			machine.CNN.getKernelSize() / 2,
+			machine.CNN.getNumFilters(), machine.CNN.getFiltersDepth(),
+			machine.CNN.getKernelSize(), machine.CNN.getKernelSize(),
 			machine.CNN.getClassifier().getNumberOfHiddenNodes(),
 			machine.CNN.getClassifier().getNumberOfOutputsNodes(),
 			machine.CNN.getClassifier().getHiddenLayerLength());

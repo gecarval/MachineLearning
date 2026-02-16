@@ -76,8 +76,7 @@ void initEngine(Machine &machine) {
 	constexpr unsigned int CNN_FILTERS = 4;
 	constexpr unsigned int CNN_FILTERS_DEPHT = 2;
 	constexpr unsigned int CNN_KERNEL_SIZE = 5;
-	constexpr unsigned int CNN_MIN_KERNEL_SIZE =
-		CNN_KERNEL_SIZE / 2 < 2 ? 2 : CNN_KERNEL_SIZE / 2;
+	constexpr unsigned int CNN_MIN_KERNEL_SIZE = 5;
 	constexpr unsigned int CNN_HIDDEN_NODES = 20000;
 	constexpr unsigned int CNN_OUTPUT_NODES = 10; // Digits 0-9
 	constexpr unsigned int CNN_HIDDEN_LAYERS_LEN = 1;

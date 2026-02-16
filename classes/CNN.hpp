@@ -33,7 +33,7 @@ class ConvNeuralNetwork {
 	void backpropConvolution(const DMatrix				&inputImage,
 							 const std::vector<DMatrix> &featureMaps,
 							 const std::vector<DMatrix> &preActivation,
-							 const DMatrix				&errorFromFC);
+							 const DMatrix &errorFromFC, const size_t i);
 
   public:
 	~ConvNeuralNetwork();
@@ -65,8 +65,8 @@ class ConvNeuralNetwork {
 	size_t getKernelSize() const;
 
 	// Access to convolutional layer parameters (for inspection/debugging)
-	const std::vector<DMatrix> &getKernels() const;
-	const std::vector<float>   &getKernelBiases() const;
+	const std::vector<std::vector<DMatrix>> &getKernels() const;
+	const std::vector<std::vector<float>>	&getKernelBiases() const;
 
 	/* Helper: Converte a NeuralNetwork interna para um objeto JSON
 	static nlohmann::json classifierToJson(const NeuralNetwork &nn) {

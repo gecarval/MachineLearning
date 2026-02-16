@@ -231,18 +231,20 @@ std::vector<float> DMatrix::toVector() const {
 }
 
 DMatrix DMatrix::maxPooling(const unsigned int poolSize) const {
-	if (this->rows < poolSize || this->cols < poolSize) {
-		throw std::runtime_error("Kernel Mult Mismatch");
+	if (poolSize == 0 || this->rows < poolSize || this->cols < poolSize) {
+		throw std::runtime_error("Invalid pool size or matrix too small");
 	}
-	const unsigned int rowDiff = this->rows - poolSize;
-	const unsigned int colDiff = this->cols - poolSize;
-	DMatrix			   output(this->rows - rowDiff, this->cols - colDiff);
-	for (size_t i = 0; i < output.rows; i++) {
-		for (size_t j = 0; j < output.cols; j++) {
-			float maxVal = (*this)(i, j);
-			for (size_t ii = i; ii < i + poolSize; ii++) {
-				for (size_t jj = j; jj < j + poolSize; jj++) {
-					maxVal = std::max(maxVal, (*this)(ii, jj));
+	size_t	outRows = this->rows / poolSize;
+	size_t	outCols = this->cols / poolSize;
+	DMatrix output(outRows, outCols);
+	for (size_t i = 0; i < outRows; i++) {
+		for (size_t j = 0; j < outCols; j++) {
+			float maxVal = (*this)(i * poolSize, j * poolSize);
+			for (size_t ii = 0; ii < poolSize; ii++) {
+				for (size_t jj = 0; jj < poolSize; jj++) {
+					float current =
+						(*this)(i * poolSize + ii, j * poolSize + jj);
+					if (current > maxVal) maxVal = current;
 				}
 			}
 			output(i, j) = maxVal;
@@ -252,23 +254,22 @@ DMatrix DMatrix::maxPooling(const unsigned int poolSize) const {
 }
 
 DMatrix DMatrix::averagePooling(const unsigned int poolSize) const {
-	if (this->rows < poolSize || this->cols < poolSize) {
-		throw std::runtime_error("Kernel Mult Mismatch");
+	if (poolSize == 0 || this->rows < poolSize || this->cols < poolSize) {
+		throw std::runtime_error("Invalid pool size or matrix too small");
 	}
-	const unsigned int rowDiff = this->rows - poolSize;
-	const unsigned int colDiff = this->cols - poolSize;
-	DMatrix			   output(this->rows - rowDiff, this->cols - colDiff);
-	for (size_t i = 0; i < output.rows; i++) {
-		for (size_t j = 0; j < output.cols; j++) {
-			float		 value = 0;
-			unsigned int amount = 0;
-			for (size_t ii = i; ii < i + poolSize; ii++) {
-				for (size_t jj = j; jj < j + poolSize; jj++) {
-					value += (*this)(ii, jj);
-					amount++;
+	size_t	outRows = this->rows / poolSize;
+	size_t	outCols = this->cols / poolSize;
+	DMatrix output(outRows, outCols);
+	float	area = static_cast<float>(poolSize * poolSize);
+	for (size_t i = 0; i < outRows; i++) {
+		for (size_t j = 0; j < outCols; j++) {
+			float sum = 0.0f;
+			for (size_t ii = 0; ii < poolSize; ii++) {
+				for (size_t jj = 0; jj < poolSize; jj++) {
+					sum += (*this)(i * poolSize + ii, j * poolSize + jj);
 				}
 			}
-			output(i, j) = value / amount;
+			output(i, j) = sum / area;
 		}
 	}
 	return (output);
