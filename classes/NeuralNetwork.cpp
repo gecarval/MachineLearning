@@ -226,6 +226,7 @@ NeuralNetwork &NeuralNetwork::operator=(const NeuralNetwork &other) {
 		this->HiddenDeactivate = other.HiddenDeactivate;
 		this->OutputActivate = other.OutputActivate;
 		this->OutputDeactivate = other.OutputDeactivate;
+		this->useSoftmax = other.useSoftmax;
 	}
 	return (*this);
 }
@@ -299,14 +300,16 @@ DMatrix NeuralNetwork::train(const DMatrix &inputArray,
 		gradient.map(errorTolerance);
 		gradient *= this->learnRate;
 		gradient.map(clampGradient);
+		// Save ol Weight to backwards passing
+		const DMatrix oldWeightT = this->weight[i].transpose();
 		// Compute weight delta
-		const DMatrix &prevOutput = outputs[i].transpose();
-		const DMatrix  weightDelta = gradient * prevOutput;
+		const DMatrix prevOutput = outputs[i].transpose();
+		const DMatrix weightDelta = gradient * prevOutput;
 		// Update weights and biases
 		this->weight[i] += weightDelta;
 		this->bias[i] += gradient;
 		// Propagate error backwards
-		layerError = (this->weight[i].transpose()) *= gradient;
+		layerError = oldWeightT * gradient;
 	}
 	this->clampWeightsAndBiases();
 	return (layerError);

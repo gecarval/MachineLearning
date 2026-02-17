@@ -73,11 +73,11 @@ void initEngine(Machine &machine) {
 	// CNN Settings (for digit recognition - 10 classes)
 	constexpr unsigned int CANVAS_WIDTH = 24;
 	constexpr unsigned int CANVAS_HEIGHT = 24;
-	constexpr unsigned int CNN_FILTERS = 4;
-	constexpr unsigned int CNN_FILTERS_DEPHT = 2;
-	constexpr unsigned int CNN_KERNEL_SIZE = 5;
-	constexpr unsigned int CNN_MIN_KERNEL_SIZE = 5;
-	constexpr unsigned int CNN_HIDDEN_NODES = 20000;
+	constexpr unsigned int CNN_FILTERS = 16;
+	constexpr unsigned int CNN_FILTERS_DEPHT = 1;
+	constexpr unsigned int CNN_KERNEL_SIZE = 3;
+	constexpr unsigned int CNN_MIN_KERNEL_SIZE = CNN_KERNEL_SIZE;
+	constexpr unsigned int CNN_HIDDEN_NODES = 128;
 	constexpr unsigned int CNN_OUTPUT_NODES = 10; // Digits 0-9
 	constexpr unsigned int CNN_HIDDEN_LAYERS_LEN = 1;
 	constexpr float		   CNN_LEARNING_RATE = 0.001f;

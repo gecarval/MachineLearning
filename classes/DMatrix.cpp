@@ -312,7 +312,7 @@ DMatrix DMatrix::kernelMultHalfPadded(const DMatrix &kernel) const {
 	}
 	const unsigned int rowDiff = kernel.rows / 2;
 	const unsigned int colDiff = kernel.cols / 2;
-	DMatrix			   input(this->rows + rowDiff, this->cols + colDiff);
+	DMatrix input(this->rows + rowDiff * 2, this->cols + colDiff * 2);
 	for (size_t i = 0; i < this->rows; i++) {
 		for (size_t j = 0; j < this->cols; j++) {
 			input(i + rowDiff, j + colDiff) = (*this)(i, j);
@@ -322,9 +322,9 @@ DMatrix DMatrix::kernelMultHalfPadded(const DMatrix &kernel) const {
 	for (size_t i = 0; i < output.rows; i++) {
 		for (size_t j = 0; j < output.cols; j++) {
 			float val = 0;
-			for (size_t ii = i; ii < i + kernel.rows; ii++) {
-				for (size_t jj = j; jj < j + kernel.cols; jj++) {
-					val += input(ii, jj) * kernel(ii, jj);
+			for (size_t ki = 0; ki < kernel.rows; ki++) {
+				for (size_t kj = 0; kj < kernel.cols; kj++) {
+					val += input(i + ki, j + kj) * kernel(ki, kj);
 				}
 			}
 			output(i, j) = val;
@@ -368,6 +368,18 @@ void DMatrix::multiply(const DMatrix &other) {
 	std::transform(this->matrix.begin(), this->matrix.end(),
 				   other.matrix.begin(), this->matrix.begin(),
 				   std::multiplies<float>());
+}
+
+void DMatrix::pow(const float exp) {
+	std::transform(this->matrix.begin(), this->matrix.end(),
+				   this->matrix.begin(),
+				   [exp](float x) { return std::pow(x, exp); });
+}
+
+void DMatrix::powneg(const float exp) {
+	std::transform(this->matrix.begin(), this->matrix.end(),
+				   this->matrix.begin(),
+				   [exp](float x) { return std::pow(-x, exp); });
 }
 
 void DMatrix::setValue(size_t row, size_t col, float val) {

@@ -328,15 +328,30 @@ void loadTrainingData(
 }
 
 void DrawLoadingBar(int currentEpoch, int totalEpochs, int currentIndex,
-					int totalItems, double averageEpochTime) {
+					int totalItems, double averageItemTime) {
 	const float progress =
 		static_cast<float>(currentIndex) / static_cast<float>(totalItems);
-	const int	 barWidth = 400;
-	const int	 barHeight = 30;
-	const int	 x = (GetScreenWidth() - barWidth) / 2;
-	const int	 y = (GetScreenHeight() - barHeight) / 2;
-	const double totalTimeleftinEpoch =
-		averageEpochTime * (totalItems - currentIndex);
+	const int barWidth = 400;
+	const int barHeight = 30;
+	const int x = (GetScreenWidth() - barWidth) / 2;
+	const int y = (GetScreenHeight() - barHeight) / 2;
+
+	// 1. Items left in the CURRENT epoch
+	const int	 itemsLeftInCurrentEpoch = totalItems - currentIndex;
+	const double timeLeftThisEpoch = averageItemTime * itemsLeftInCurrentEpoch;
+
+	// 2. Full epochs remaining AFTER the current one
+	// If currentEpoch is 0 and total is 100, there are 99 full epochs left
+	const int	 fullEpochsRemaining = totalEpochs - (currentEpoch + 1);
+	const double timeForFutureEpochs =
+		(averageItemTime * totalItems) * fullEpochsRemaining;
+
+	const double timeLeftForAllTraining =
+		timeLeftThisEpoch + timeForFutureEpochs;
+
+	// Formatting seconds into MM:SS for better readability
+	const int mins = static_cast<int>(timeLeftForAllTraining * 10) / 60;
+	const int secs = static_cast<int>(timeLeftForAllTraining * 10) % 60;
 
 	ClearBackground(RAYWHITE);
 
@@ -344,38 +359,51 @@ void DrawLoadingBar(int currentEpoch, int totalEpochs, int currentIndex,
 		TextFormat("Training... Epoch %d/%d", currentEpoch + 1, totalEpochs), x,
 		y - 40, 20, BLACK);
 
-	DrawText(
-		TextFormat("Estimated time left: %.1f seconds", totalTimeleftinEpoch),
-		x, y + 40, 20, DARKGRAY);
+	DrawText(TextFormat("Estimated time left: %02d:%02d", mins, secs), x,
+			 y + 40, 20, DARKGRAY);
 
+	// Progress bar
 	DrawRectangle(x, y, barWidth, barHeight, LIGHTGRAY);
 	DrawRectangle(x, y, static_cast<int>(barWidth * progress), barHeight, BLUE);
-	DrawRectangleLinesEx({(float)x, (float)y, barWidth, barHeight}, 2.0f,
-						 BLACK);
+	DrawRectangleLinesEx(
+		{(float)x, (float)y, (float)barWidth, (float)barHeight}, 2.0f, BLACK);
 }
 
 void trainModel(Machine &machine, const int epoch) {
 	std::vector<std::pair<std::vector<float>, std::vector<float>>> trainingData;
+	loadTrainingData(trainingData);
+	if (trainingData.empty()) {
+		return;
+	}
 	Button cancelTrainButton(GetScreenWidth() / 2.0f - 50,
 							 GetScreenHeight() / 2.0f + 80, 100, 30, "Cancel");
-	loadTrainingData(trainingData);
-	double averageEpochTime = 0.0;
+	double averageItemTime = 0.0;
+	long   totalItemsProcessed = 0;
 	for (int e = 0; e < epoch; ++e) {
-		double startTime{};
 		for (long i = 0; i < static_cast<long>(trainingData.size()); ++i) {
-			startTime = GetTime();
+			double startTime = GetTime();
 			machine.CNN.train(trainingData[i].first, trainingData[i].second);
-			averageEpochTime =
-				(averageEpochTime * i + (GetTime() - startTime)) / (i + 1);
-			BeginDrawing();
-			DrawLoadingBar(e, epoch, i, trainingData.size(), averageEpochTime);
-			cancelTrainButton.update();
-			cancelTrainButton.draw();
-			EndDrawing();
-			if (cancelTrainButton.isButtonPressed()) {
-				TraceLog(LOG_INFO, "Training cancelled at epoch %d, item %ld",
-						 e + 1, i);
-				return;
+			// Cumulative Moving Average for smoother time estimation
+			double frameTime = GetTime() - startTime;
+			totalItemsProcessed++;
+			averageItemTime =
+				(averageItemTime * (totalItemsProcessed - 1) + frameTime) /
+				totalItemsProcessed;
+			// draw every X items to improve performance (Optional)
+			if (i % 10 == 0) {
+				BeginDrawing();
+				DrawLoadingBar(e, epoch, i, trainingData.size(),
+							   averageItemTime);
+
+				cancelTrainButton.update();
+				cancelTrainButton.draw();
+
+				if (cancelTrainButton.isButtonPressed()) {
+					EndDrawing();
+					TraceLog(LOG_INFO, "Training cancelled");
+					return;
+				}
+				EndDrawing();
 			}
 		}
 	}
@@ -428,14 +456,14 @@ static void handleKeyboardInput(Machine &machine) {
 		TraceLog(LOG_INFO, "Trained digit: %d", cnnState.currentLabel);
 	}
 
-	if (IsKeyPressed(KEY_LEFT_SHIFT) && IsKeyDown(KEY_LEFT_CONTROL) &&
+	if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyDown(KEY_LEFT_SHIFT) &&
 		IsKeyPressed(KEY_S)) {
 		TraceLog(LOG_INFO, "Saved grid for training.");
 		saveGrid();
 	}
 
-	if (IsKeyPressed(KEY_T) && IsKeyDown(KEY_LEFT_CONTROL)) {
-		static const int epoch = 5;
+	if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_T)) {
+		static const int epoch = 50;
 		trainModel(machine, epoch);
 		TraceLog(LOG_INFO, "Trained digit: %d", epoch);
 	}
