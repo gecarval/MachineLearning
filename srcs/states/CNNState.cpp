@@ -2,7 +2,7 @@
 
 // Canvas configuration
 namespace CanvasConfig {
-constexpr int GRID_SIZE = 24;
+constexpr int GRID_SIZE = 28;
 constexpr int BRUSH_SIZE = 1;
 
 // Dynamic sizing based on screen
@@ -309,8 +309,10 @@ void loadTrainingData(
 	const std::string directory = "traindata/";
 	for (int number = 0; number < 10; number++) {
 		const std::string subdirectory = std::to_string(number);
-		for (int fileNumber = 0; fileNumber < 1000; fileNumber++) {
-			const std::string image = "/image_" + std::to_string(fileNumber);
+		for (int fileNumber = 0; fileNumber < 10000; fileNumber++) {
+			const std::string num = std::to_string(fileNumber);
+			const std::string pad = std::string(4 - num.length(), '0');
+			const std::string image = "/image_" + pad + num;
 			const std::string filename = directory + subdirectory + image;
 			const std::string extension = ".png";
 			if (!std::filesystem::exists(filename + extension)) {

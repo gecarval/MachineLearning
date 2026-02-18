@@ -71,8 +71,8 @@ void initEngine(Machine &machine) {
 	machine.NN.setLearnRate(NN_LEARNING_RATE);
 	machine.NN.enableSoftmax(true);
 	// CNN Settings (for digit recognition - 10 classes)
-	constexpr unsigned int CANVAS_WIDTH = 24;
-	constexpr unsigned int CANVAS_HEIGHT = 24;
+	constexpr unsigned int CANVAS_WIDTH = 28;
+	constexpr unsigned int CANVAS_HEIGHT = 28;
 	constexpr unsigned int CNN_FILTERS = 16;
 	constexpr unsigned int CNN_FILTERS_DEPHT = 1;
 	constexpr unsigned int CNN_KERNEL_SIZE = 3;
