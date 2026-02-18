@@ -19,6 +19,10 @@ class ConvNeuralNetwork {
 	std::vector<std::vector<DMatrix>> kernels;
 	std::vector<std::vector<float>>	  kernelBiases;
 
+	// Argmax positions from max pooling (for correct backprop per filter)
+	// poolArgmax[f] stores flat indices into the pre-pool feature map
+	mutable std::vector<std::vector<size_t>> poolArgmax;
+
 	// Neural Network class handles the "Fully Connected" part
 	NeuralNetwork classifier;
 
@@ -53,6 +57,10 @@ class ConvNeuralNetwork {
 	void				 setClassifier(const NeuralNetwork &classifier);
 	NeuralNetwork		&getClassifier();
 	const NeuralNetwork &getClassifier() const;
+
+	DMatrix getConvOnAFilterFunnel(const DMatrix &inputImage,
+								   const size_t	  filter,
+								   const size_t	  depth) const;
 
 	void  setConvLearnRate(float lr);
 	float getConvLearnRate(void) const;

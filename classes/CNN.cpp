@@ -215,6 +215,8 @@ DMatrix ConvNeuralNetwork::performConvolution(
 	// Apply each kernel to each feature map sequentially
 	std::vector<DMatrix> filteredMaps;
 	filteredMaps.reserve(this->numFilters);
+	// Resize poolArgmax to hold one argmax map per filter
+	this->poolArgmax.assign(this->numFilters, std::vector<size_t>());
 	for (size_t f = 0; f < this->numFilters; f++) {
 		// Start with the input image as the initial "feature map"
 		DMatrix convResult(inputImage);
@@ -230,7 +232,35 @@ DMatrix ConvNeuralNetwork::performConvolution(
 			// Store feature map for backprop
 			featureMaps[f * this->filtersDepth + d] = convResult;
 		}
-		filteredMaps.push_back(convResult.maxPooling(2));
+		// Max pooling with argmax tracking
+		const size_t poolSize = 2;
+		const size_t prePoolRows = convResult.getRowLength();
+		const size_t prePoolCols = convResult.getColLength();
+		const size_t outRows = prePoolRows / poolSize;
+		const size_t outCols = prePoolCols / poolSize;
+		DMatrix		 pooled(outRows, outCols);
+		// Store one flat index per pooled output position
+		this->poolArgmax[f].resize(outRows * outCols);
+		for (size_t r = 0; r < outRows; ++r) {
+			for (size_t c = 0; c < outCols; ++c) {
+				float  maxVal = convResult(r * poolSize, c * poolSize);
+				size_t maxIdx = (r * poolSize) * prePoolCols + (c * poolSize);
+				for (size_t pr = 0; pr < poolSize; ++pr) {
+					for (size_t pc = 0; pc < poolSize; ++pc) {
+						float val =
+							convResult(r * poolSize + pr, c * poolSize + pc);
+						if (val > maxVal) {
+							maxVal = val;
+							maxIdx = (r * poolSize + pr) * prePoolCols +
+									 (c * poolSize + pc);
+						}
+					}
+				}
+				pooled(r, c) = maxVal;
+				this->poolArgmax[f][r * outCols + c] = maxIdx;
+			}
+		}
+		filteredMaps.push_back(pooled);
 	}
 	// Flatten the final feature map to feed into the NeuralNetwork
 	std::vector<float> flatResult;
@@ -306,20 +336,24 @@ void ConvNeuralNetwork::backpropConvolution(
 		// 1. dZ = Error from front * Derivative of the activation (DLeakyReLU)
 		DMatrix dZ =
 			preActivation[f * this->filtersDepth + static_cast<size_t>(d)];
+		dZ.map(LeakyReLU);
 		dZ.map(DLeakyReLU);
 		// Hadamard multiplication (element by element)
 		DMatrix upstreamError = currentError;
 		if (d == static_cast<long>(this->filtersDepth) - 1) {
-			// Nearest-neighbour upsample by pool factor 2
-			const size_t poolSize = 2;
+			// Argmax unpooling: route gradient only through the max position
+			// that was recorded during the forward pass for filter f.
 			DMatrix		 unpooled(dZ.getRowLength(), dZ.getColLength());
-			for (size_t r = 0; r < currentError.getRowLength(); ++r) {
-				for (size_t c = 0; c < currentError.getColLength(); ++c) {
-					float val = currentError(r, c);
-					for (size_t pr = 0; pr < poolSize; ++pr)
-						for (size_t pc = 0; pc < poolSize; ++pc)
-							unpooled(r * poolSize + pr, c * poolSize + pc) =
-								val;
+			const size_t outRows = currentError.getRowLength();
+			const size_t outCols = currentError.getColLength();
+			const size_t prePoolCols = unpooled.getColLength();
+			for (size_t r = 0; r < outRows; ++r) {
+				for (size_t c = 0; c < outCols; ++c) {
+					// Flat index in pre-pool map where the max came from
+					size_t flatIdx = this->poolArgmax[f][r * outCols + c];
+					size_t pr = flatIdx / prePoolCols;
+					size_t pc = flatIdx % prePoolCols;
+					unpooled(pr, pc) = currentError(r, c);
 				}
 			}
 			upstreamError = unpooled;
@@ -384,6 +418,41 @@ void ConvNeuralNetwork::backpropConvolution(
 		this->kernels[f][d] -= (dW * this->convLearnRate);
 		this->kernelBiases[f][d] -= (dZ.totalSum() * this->convLearnRate);
 	}
+}
+
+DMatrix ConvNeuralNetwork::getConvOnAFilterFunnel(const DMatrix &inputImage,
+												  const size_t	 filter,
+												  const size_t	 depth) const {
+	// Apply the specified kernel to the input image
+	if (depth >= this->filtersDepth || filter >= this->numFilters) {
+		throw std::out_of_range("Filter or depth index out of range");
+	}
+	// Correctly transpose image vector into image Matrix
+	DMatrix imageMatrix(this->inputHeight, this->inputWidth);
+	for (size_t i = 0; i < this->inputHeight; i++) {
+		for (size_t j = 0; j < this->inputWidth; j++) {
+			imageMatrix.setValue(i, j, inputImage(i * this->inputWidth + j, 0));
+		}
+	}
+	// If depth > 0, we need to use the output of the previous filter as input
+	for (size_t d = 0; d < depth; d++) {
+		imageMatrix = imageMatrix.kernelMult(this->kernels[filter][d]);
+		// Add bias
+		imageMatrix += this->kernelBiases[filter][d];
+		// Apply LeakyReLU activation
+		imageMatrix.map(LeakyReLU);
+	}
+	// Now apply the requested kernel
+	DMatrix convResult = imageMatrix.kernelMult(this->kernels[filter][depth]);
+	// Add bias
+	convResult += this->kernelBiases[filter][depth];
+	// Apply LeakyReLU activation
+	convResult.map(LeakyReLU);
+	// Apply max pooling with pool size 2 for last depth layer
+	if (depth == this->filtersDepth - 1) {
+		convResult = convResult.maxPooling(2);
+	}
+	return (convResult);
 }
 
 void ConvNeuralNetwork::setClassifier(const NeuralNetwork &classifier) {

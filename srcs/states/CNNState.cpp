@@ -70,6 +70,19 @@ struct Canvas {
 		UnloadImage(canvasImage);
 	}
 
+	void putConvoluctionResultOnCanvas(Machine			 &machine,
+									   std::vector<float> input,
+									   const size_t		  filter,
+									   const size_t		  depth) {
+		const DMatrix &featureMap =
+			machine.CNN.getConvOnAFilterFunnel(input, filter, depth);
+		for (size_t r = 0; r < featureMap.getRowLength(); r++) {
+			for (size_t c = 0; c < featureMap.getColLength(); c++) {
+				this->setPixel(r, c, featureMap(r, c));
+			}
+		}
+	}
+
 	void clear() {
 		for (auto &row : this->grid) {
 			std::fill(row.begin(), row.end(), 0.0f);
@@ -308,15 +321,15 @@ void loadTrainingData(
 	std::vector<std::pair<std::vector<float>, std::vector<float>>> &data) {
 	const std::string directory = "traindata/";
 	for (int number = 0; number < 10; number++) {
-		const std::string subdirectory = std::to_string(number);
 		for (int fileNumber = 0; fileNumber < 10000; fileNumber++) {
+			const std::string subdirectory = std::to_string(number);
 			const std::string num = std::to_string(fileNumber);
 			const std::string pad = std::string(4 - num.length(), '0');
 			const std::string image = "/image_" + pad + num;
 			const std::string filename = directory + subdirectory + image;
 			const std::string extension = ".png";
 			if (!std::filesystem::exists(filename + extension)) {
-				break;
+				continue;
 			}
 			Canvas tempCanvas;
 			if (!tempCanvas.importImageCanvas(filename + extension)) {
@@ -376,6 +389,9 @@ void trainModel(Machine &machine, const int epoch) {
 	if (trainingData.empty()) {
 		return;
 	}
+	// Randomize training data order for better training
+	std::shuffle(trainingData.begin(), trainingData.end(),
+				 std::default_random_engine(std::random_device{}()));
 	Button cancelTrainButton(GetScreenWidth() / 2.0f - 50,
 							 GetScreenHeight() / 2.0f + 80, 100, 30, "Cancel");
 	double averageItemTime = 0.0;
@@ -434,6 +450,44 @@ void saveGrid(void) {
 	}
 }
 
+void convuluctionGallery(Machine &machine, std::vector<float> input) {
+	const int numFilters = machine.CNN.getNumFilters();
+	const int depth = machine.CNN.getFiltersDepth();
+
+	static int currentFilter = 0;
+	static int currentDepth = 0;
+
+	while (true) {
+		cnnState.canvas.clear();
+		cnnState.canvas.putConvoluctionResultOnCanvas(
+			machine, input, currentFilter, currentDepth);
+		BeginDrawing();
+		ClearBackground(RAYWHITE);
+		drawCanvas(cnnState.canvas, CanvasConfig::getCellSize());
+		DrawText(
+			TextFormat("Filter: %d | Depth: %d", currentFilter, currentDepth),
+			10, 10, 20, BLACK);
+		EndDrawing();
+
+		if (IsKeyPressed(KEY_RIGHT)) {
+			currentFilter = (currentFilter + 1) % numFilters;
+		}
+		if (IsKeyPressed(KEY_LEFT)) {
+			currentFilter = (currentFilter - 1 + numFilters) % numFilters;
+		}
+		if (IsKeyPressed(KEY_UP)) {
+			currentDepth = (currentDepth + 1) % depth;
+		}
+		if (IsKeyPressed(KEY_DOWN)) {
+			currentDepth = (currentDepth - 1 + depth) % depth;
+		}
+		if (IsKeyPressed(KEY_ESCAPE)) {
+			break;
+		}
+	}
+	cnnState.canvas.clear();
+}
+
 static void handleKeyboardInput(Machine &machine) {
 	if (!IsWindowFocused()) return;
 
@@ -467,6 +521,13 @@ static void handleKeyboardInput(Machine &machine) {
 		static const int epoch = 10;
 		trainModel(machine, epoch);
 		TraceLog(LOG_INFO, "Trained digit: %d", epoch);
+	}
+
+	// Conv on Grid Gallery
+	if (IsKeyPressed(KEY_H)) {
+		std::vector<float> input = cnnState.canvas.toVector();
+		convuluctionGallery(machine, input);
+		TraceLog(LOG_INFO, "Applied convolution on canvas");
 	}
 
 	// Predict
