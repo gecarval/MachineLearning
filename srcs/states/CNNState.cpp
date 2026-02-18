@@ -139,7 +139,7 @@ struct Layout {
 
 		// Determine if we have space for side-by-side layout
 		constexpr float PREDICTION_WIDTH = 300.0f;
-		constexpr float MIN_PADDING = 40.0f;
+		constexpr float MIN_PADDING = 20.0f;
 		layout.showPredictionsSide =
 			(screenW >= layout.canvasSize + PREDICTION_WIDTH + MIN_PADDING * 3);
 
@@ -510,7 +510,7 @@ static void handleKeyboardInput(Machine &machine) {
 	}
 
 	// Save/Load model
-	if (IsKeyPressed(KEY_S) && IsKeyDown(KEY_LEFT_CONTROL)) {
+	if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
 		try {
 			// ConvNeuralNetwork::serialize(machine.CNN,
 			// "ConvNeuralNetwork.json");
@@ -520,7 +520,7 @@ static void handleKeyboardInput(Machine &machine) {
 		}
 	}
 
-	if (IsKeyPressed(KEY_L) && IsKeyDown(KEY_LEFT_CONTROL)) {
+	if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_L)) {
 		try {
 			// machine.CNN.setClassifier(NeuralNetwork::deserialize("ConvNeuralNetwork.json"));
 			cnnState.isPredicting = false;
@@ -594,13 +594,11 @@ int handleCNNState(Machine &machine) {
 	DrawText(
 		"Keys: 0-9 (Label) | C (Clear) | T (Train) | P (Predict) | R (Reset)",
 		instrPos.x, instrPos.y + lineSpacing, instrSize, DARKGRAY);
-	DrawText("Mouse: Left (Draw) | Right (Erase)", instrPos.x,
-			 instrPos.y + lineSpacing * 2, instrSize, DARKGRAY);
-	DrawText("Ctrl+S (Save AI) | Ctrl+L (Load AI)", instrPos.x,
-			 instrPos.y + lineSpacing * 3, instrSize, DARKGRAY);
-	DrawText(
-		"Ctrl+T (Train on Database) | Ctrl+Shift+S (Save Grid on Database)",
-		instrPos.x, instrPos.y + lineSpacing * 4, instrSize, DARKGRAY);
+	DrawText("Mouse: Left (Draw) | Right (Erase) | Ctrl+Shift+S (Save Grid on "
+			 "Database)",
+			 instrPos.x, instrPos.y + lineSpacing * 2, instrSize, DARKGRAY);
+	DrawText("Ctrl+S (Save AI) | Ctrl+L (Load AI) | Ctrl+T (Train on Database)",
+			 instrPos.x, instrPos.y + lineSpacing * 3, instrSize, DARKGRAY);
 
 	// Back button
 	backButton(machine).draw();
