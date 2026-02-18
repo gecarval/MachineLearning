@@ -2,7 +2,6 @@
 #define CNN_HPP
 
 #include "NeuralNetwork.hpp"
-#include <cstddef>
 #include <iterator>
 #include <system_error>
 
@@ -68,133 +67,108 @@ class ConvNeuralNetwork {
 	const std::vector<std::vector<DMatrix>> &getKernels() const;
 	const std::vector<std::vector<float>>	&getKernelBiases() const;
 
-	/* Helper: Converte a NeuralNetwork interna para um objeto JSON
-	static nlohmann::json classifierToJson(const NeuralNetwork &nn) {
-		nlohmann::json j;
-		j["learnRate"] = nn.getLearnRate();
-		j["numberOfInputsNodes"] = nn.getNumberOfInputsNodes();
-		j["numberOfHiddenNodes"] = nn.getNumberOfHiddenNodes();
-		j["numberOfOutputNodes"] = nn.getNumberOfOutputsNodes();
-		j["hiddenLayerLen"] = nn.getHiddenLayerLength();
-
-		j["weights"] = nlohmann::json::array();
-		j["bias"] = nlohmann::json::array();
-
-		for (size_t i = 0; i <= nn.getHiddenLayerLength(); ++i) {
-			j["weights"].push_back(nn.getWeightAt(i).toVector());
-			j["bias"].push_back(nn.getBiasAt(i).toVector());
+	static nlohmann::json serialize(const ConvNeuralNetwork &cnn,
+									const std::string &filename) noexcept {
+		nlohmann::json jsonData;
+		jsonData["inputWidth"] = cnn.getInputWidth();
+		jsonData["inputHeight"] = cnn.getInputHeight();
+		jsonData["numFilters"] = cnn.getNumFilters();
+		jsonData["filtersDepth"] = cnn.getFiltersDepth();
+		jsonData["kernelSize"] = cnn.getKernelSize();
+		jsonData["convLearnRate"] = cnn.getConvLearnRate();
+		for (size_t f = 0; f < cnn.getNumFilters(); f++) {
+			for (size_t d = 0; d < cnn.getFiltersDepth(); d++) {
+				const DMatrix				   &kernel = cnn.getKernels()[f][d];
+				std::vector<std::vector<float>> kernelData(
+					kernel.getRowLength(),
+					std::vector<float>(kernel.getColLength()));
+				for (size_t r = 0; r < kernel.getRowLength(); r++) {
+					for (size_t c = 0; c < kernel.getColLength(); c++) {
+						kernelData[r][c] = kernel(r, c);
+					}
+				}
+				jsonData["kernels"][f][d] = kernelData;
+				jsonData["kernelBiases"][f][d] = cnn.getKernelBiases()[f][d];
+			}
 		}
-		return j;
+		jsonData["classifier"] =
+			NeuralNetwork::serialize(cnn.getClassifier(), "");
+		std::ofstream file(filename);
+		if (file.is_open()) {
+			file << jsonData.dump(4);
+			file.close();
+		} else {
+			std::cerr << "Error: Could not open file for writing: " << filename
+					  << std::endl;
+		}
+		return (jsonData);
 	}
 
-	// Helper: Reconstrói a NeuralNetwork a partir de um objeto JSON
+	static ConvNeuralNetwork deserialize(const std::string &filename) noexcept {
+		std::ifstream file(filename);
+		if (!file.is_open()) {
+			std::cerr << "Error: Could not open file for reading: " << filename
+					  << std::endl;
+			return ConvNeuralNetwork();
+		}
+		nlohmann::json jsonData;
+		file >> jsonData;
+		file.close();
+
+		size_t inputWidth = jsonData["inputWidth"];
+		size_t inputHeight = jsonData["inputHeight"];
+		size_t numFilters = jsonData["numFilters"];
+		size_t filtersDepth = jsonData["filtersDepth"];
+		size_t kernelSize = jsonData["kernelSize"];
+		float  convLearnRate = jsonData["convLearnRate"];
+
+		ConvNeuralNetwork cnn(inputWidth, inputHeight, numFilters, filtersDepth,
+							  kernelSize, kernelSize, 0, 0, 0);
+		cnn.setConvLearnRate(convLearnRate);
+		for (size_t f = 0; f < numFilters; f++) {
+			for (size_t d = 0; d < filtersDepth; d++) {
+				const auto &kernelData = jsonData["kernels"][f][d];
+				DMatrix		kernel(kernelSize, kernelSize);
+				for (size_t r = 0; r < kernelSize; r++) {
+					for (size_t c = 0; c < kernelSize; c++) {
+						kernel(r, c) = kernelData[r][c];
+					}
+				}
+				cnn.kernels[f][d] = kernel;
+				cnn.kernelBiases[f][d] =
+					jsonData["kernelBiases"][f][d].get<float>();
+			}
+		}
+		cnn.setClassifier(
+			ConvNeuralNetwork::classifierFromJson(jsonData["classifier"]));
+		return (cnn);
+	}
+
 	static NeuralNetwork classifierFromJson(const nlohmann::json &j) {
 		NeuralNetwork nn(j.at("numberOfInputsNodes").get<size_t>(),
 						 j.at("numberOfHiddenNodes").get<size_t>(),
 						 j.at("numberOfOutputNodes").get<size_t>(),
 						 j.at("hiddenLayerLen").get<size_t>());
 		nn.setLearnRate(j.at("learnRate").get<float>());
-
+		// Load Weights
 		for (size_t i = 0; i <= nn.getHiddenLayerLength(); ++i) {
-			std::vector<float> w_data =
-				j.at("weights").at(i).get<std::vector<float>>();
-			std::vector<float> b_data =
-				j.at("bias").at(i).get<std::vector<float>>();
-
-			// Como o constructor DMatrix(vector) cria uma matriz coluna,
-			// precisamos garantir que as dimensões batam com o que a NN espera
-			DMatrix &w_ref = const_cast<DMatrix &>(nn.getWeightAt(i));
-			DMatrix &b_ref = const_cast<DMatrix &>(nn.getBiasAt(i));
-
-			// Reconstrói mantendo as dimensões originais de linhas/colunas
-			size_t	rows = w_ref.getRowLength();
-			size_t	cols = w_ref.getColLength();
-			DMatrix restoredW(rows, cols);
-			for (size_t r = 0; r < rows; ++r)
-				for (size_t c = 0; c < cols; ++c)
-					restoredW.setValue(r, c, w_data[r * cols + c]);
-
-			w_ref = restoredW;
-			b_ref = DMatrix(b_data); // Bias é geralmente vetor coluna, então
-									 // DMatrix(vector) funciona
+			for (size_t r = 0; r < nn.getWeightAt(i).getRowLength(); ++r) {
+				for (size_t c = 0; c < nn.getWeightAt(i).getColLength(); ++c) {
+					nn.getWeightAt(i)(r, c) =
+						j["weights"][i][r][c].get<float>();
+				}
+			}
 		}
-		return nn;
+		// Load Biases
+		for (size_t i = 0; i <= nn.getHiddenLayerLength(); ++i) {
+			for (size_t r = 0; r < nn.getBiasAt(i).getRowLength(); ++r) {
+				for (size_t c = 0; c < nn.getBiasAt(i).getColLength(); ++c) {
+					nn.getBiasAt(i)(r, c) = j["bias"][i][r][c].get<float>();
+				}
+			}
+		}
+		return (nn);
 	}
-
-	static void serialize(const ConvNeuralNetwork &cnn,
-						  const std::string		  &filename) {
-		nlohmann::json j;
-
-		// 1. Metadados da Camada Convolucional
-		j["inputWidth"] = cnn.inputWidth;
-		j["inputHeight"] = cnn.inputHeight;
-		j["numFilters"] = cnn.numFilters;
-		j["kernelSize"] = cnn.kernelSize;
-		j["convLearnRate"] = cnn.convLearnRate;
-
-		// 2. Kernels e Biases
-		j["kernels"] = nlohmann::json::array();
-		for (const auto &k : cnn.kernels) {
-			// Armazenamos um objeto com os dados e as dimensões para evitar
-			// erros na reconstrução
-			nlohmann::json k_obj;
-			k_obj["rows"] = k.getRowLength();
-			k_obj["cols"] = k.getColLength();
-			k_obj["data"] = k.toVector();
-			j["kernels"].push_back(k_obj);
-		}
-		j["kernelBiases"] = cnn.kernelBiases;
-
-		// 3. Serializar o Classificador NeuralNetwork
-		j["classifier"] = cnn.classifierToJson(cnn.classifier);
-
-		// Salvar arquivo
-		std::ofstream out(filename);
-		if (!out.is_open())
-			throw std::runtime_error(
-				"Não foi possível abrir o arquivo para salvar a CNN.");
-		out << j.dump(4);
-	}
-
-	static ConvNeuralNetwork deserialize(const std::string &filename) {
-		std::ifstream in(filename);
-		if (!in.is_open())
-			throw std::runtime_error(
-				"Não foi possível abrir o arquivo para carregar a CNN.");
-
-		nlohmann::json j;
-		in >> j;
-
-		// Criar instância vazia (usando o default constructor)
-		ConvNeuralNetwork cnn;
-		cnn.inputWidth = j.at("inputWidth").get<size_t>();
-		cnn.inputHeight = j.at("inputHeight").get<size_t>();
-		cnn.numFilters = j.at("numFilters").get<size_t>();
-		cnn.kernelSize = j.at("kernelSize").get<size_t>();
-		cnn.convLearnRate = j.at("convLearnRate").get<float>();
-		cnn.kernelBiases = j.at("kernelBiases").get<std::vector<float>>();
-
-		// Reconstruir Kernels
-		cnn.kernels.clear();
-		for (const auto &k_obj : j.at("kernels")) {
-			size_t			   r = k_obj.at("rows").get<size_t>();
-			size_t			   c = k_obj.at("cols").get<size_t>();
-			std::vector<float> data =
-				k_obj.at("data").get<std::vector<float>>();
-
-			DMatrix k(r, c);
-			for (size_t i = 0; i < r; ++i)
-				for (size_t j_idx = 0; j_idx < c; ++j_idx)
-					k.setValue(i, j_idx, data[i * c + j_idx]);
-
-			cnn.kernels.push_back(k);
-		}
-
-		// Reconstruir o Classificador
-		cnn.classifier = cnn.classifierFromJson(j.at("classifier"));
-
-		return cnn;
-	}*/
 };
 
 #endif

@@ -2,6 +2,8 @@
 #define DMATRIX_HPP
 
 #include <algorithm>
+#include <cmath>
+#include <cstddef>
 #include <iostream>
 #include <random>
 #include <stdexcept>

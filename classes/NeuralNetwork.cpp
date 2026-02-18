@@ -368,6 +368,20 @@ void NeuralNetwork::enableSoftmax(bool enable) {
 	}
 }
 
+DMatrix &NeuralNetwork::getBiasAt(const size_t index) {
+	if (index > this->hiddenLayerLen) {
+		return (this->bias[this->hiddenLayerLen]);
+	}
+	return (this->bias[index]);
+}
+
+DMatrix &NeuralNetwork::getWeightAt(const size_t index) {
+	if (index > this->hiddenLayerLen) {
+		return (this->weight[this->hiddenLayerLen]);
+	}
+	return (this->weight[index]);
+}
+
 const DMatrix &NeuralNetwork::getBiasAt(const size_t index) const {
 	if (index > this->hiddenLayerLen) {
 		return (this->bias[this->hiddenLayerLen]);

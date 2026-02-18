@@ -514,8 +514,7 @@ static void handleKeyboardInput(Machine &machine) {
 	// Save/Load model
 	if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
 		try {
-			// ConvNeuralNetwork::serialize(machine.CNN,
-			// "ConvNeuralNetwork.json");
+			ConvNeuralNetwork::serialize(machine.CNN, "ConvNeuralNetwork.json");
 			TraceLog(LOG_INFO, "Model saved to CNN.json");
 		} catch (const std::exception &error) {
 			TraceLog(LOG_ERROR, "Save failed: %s", error.what());
@@ -524,7 +523,8 @@ static void handleKeyboardInput(Machine &machine) {
 
 	if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_L)) {
 		try {
-			// machine.CNN.setClassifier(NeuralNetwork::deserialize("ConvNeuralNetwork.json"));
+			machine.CNN =
+				ConvNeuralNetwork::deserialize("ConvNeuralNetwork.json");
 			cnnState.isPredicting = false;
 			TraceLog(LOG_INFO, "Model loaded from CNN.json");
 		} catch (const std::runtime_error &error) {

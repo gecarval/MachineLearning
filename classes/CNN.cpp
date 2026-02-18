@@ -1,5 +1,4 @@
 #include "./CNN.hpp"
-#include <vector>
 
 ConvNeuralNetwork::ConvNeuralNetwork()
 	: inputWidth(0), inputHeight(0), numFilters(0), filtersDepth(0),

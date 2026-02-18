@@ -4,9 +4,6 @@
 #include "../includes/json.hpp"
 #include "./DMatrix.hpp"
 #include "fstream"
-#include <cmath>
-#include <cstddef>
-#include <vector>
 
 #ifndef NNLEARNRATE
 #define NNLEARNRATE 0.001f
@@ -88,19 +85,16 @@ class NeuralNetwork {
 	size_t		   getNumberOfInputsNodes(void) const;
 	size_t		   getNumberOfHiddenNodes(void) const;
 	size_t		   getNumberOfOutputsNodes(void) const;
+	DMatrix		  &getBiasAt(const size_t index);
+	DMatrix		  &getWeightAt(const size_t index);
 	const DMatrix &getBiasAt(const size_t index) const;
 	const DMatrix &getWeightAt(const size_t index) const;
 
 	virtual NeuralNetwork mutate(float (*func)(float)) const;
 
 	// Serialize NeuralNetwork to a JSON file
-	static void serialize(const NeuralNetwork &nn,
-						  const std::string	  &filename) {
-		std::ofstream out(filename);
-		if (!out.is_open()) {
-			throw std::runtime_error("Unable to open file for serialization: " +
-									 filename);
-		}
+	static nlohmann::json serialize(const NeuralNetwork &nn,
+									const std::string	&filename) noexcept {
 		nlohmann::json j;
 		j["learnRate"] = nn.learnRate;
 		j["numberOfInputsNodes"] = nn.numberOfInputsNodes;
@@ -108,26 +102,42 @@ class NeuralNetwork {
 		j["numberOfOutputNodes"] = nn.numberOfOutputNodes;
 		j["hiddenLayerLen"] = nn.hiddenLayerLen;
 		// Serialize Weights
-		for (const auto &weightMatrix : nn.weight) {
-			// DMatrix::toVector() returns the underlying std::vector<float>
-			j["weights"].push_back(weightMatrix.toVector());
+		for (size_t i = 0; i <= nn.hiddenLayerLen; ++i) {
+			for (size_t r = 0; r < nn.weight[i].getRowLength(); ++r) {
+				for (size_t c = 0; c < nn.weight[i].getColLength(); ++c) {
+					j["weights"][i][r][c] = nn.weight[i](r, c);
+				}
+			}
 		}
 		// Serialize Biases
-		for (const auto &biasMatrix : nn.bias) {
-			j["biases"].push_back(biasMatrix.toVector());
+		for (size_t i = 0; i <= nn.hiddenLayerLen; ++i) {
+			for (size_t r = 0; r < nn.bias[i].getRowLength(); ++r) {
+				for (size_t c = 0; c < nn.bias[i].getColLength(); ++c) {
+					j["bias"][i][r][c] = nn.bias[i](r, c);
+				}
+			}
 		}
-		out << j.dump(4); // Use 4 spaces for indentation
-		out.close();
+		// Dump JSON with 4 space indentation
+		std::ofstream out(filename);
+		if (out.is_open()) {
+			out << j.dump(4);
+			out.close();
+		} else if (filename != "") {
+			std::cerr << "Error: Could not open file for writing: " << filename
+					  << std::endl;
+		}
+		return (j);
 	}
 
 	// Deserialize NeuralNetwork from a JSON file
-	static NeuralNetwork deserialize(const std::string &filename) {
-		std::ifstream in(filename);
-		if (!in.is_open()) {
-			throw std::runtime_error(
-				"Unable to open file for deserialization: " + filename);
-		}
+	static NeuralNetwork deserialize(const std::string &filename) noexcept {
 		nlohmann::json j;
+		std::ifstream  in(filename);
+		if (!in.is_open()) {
+			std::cerr << "Error: Could not open file for reading: " << filename
+					  << std::endl;
+			return (NeuralNetwork());
+		}
 		in >> j;
 		// Create the NN instance using the loaded parameters
 		NeuralNetwork nn(j.at("numberOfInputsNodes").get<size_t>(),
@@ -136,25 +146,20 @@ class NeuralNetwork {
 						 j.at("hiddenLayerLen").get<size_t>());
 		nn.setLearnRate(j.at("learnRate").get<float>());
 		// Load Weights
-		for (size_t i = 0; i < nn.hiddenLayerLen + 1; ++i) {
-			std::vector<float> w_data =
-				j.at("weights").at(i).get<std::vector<float>>();
-			// We must reshape the flat vector back to a Matrix (rows, cols)
-			size_t r = nn.weight[i].getRowLength();
-			size_t c = nn.weight[i].getColLength();
-			nn.weight[i] = DMatrix(w_data);
-			// Manual Reshape: Since DMatrix(vector) creates a column vector,
-			// we manually fix dimensions
-			nn.weight[i] = DMatrix(r, c);
-			for (size_t idx = 0; idx < w_data.size(); ++idx) {
-				nn.weight[i](idx / c, idx % c) = w_data[idx];
+		for (size_t i = 0; i <= nn.hiddenLayerLen; ++i) {
+			for (size_t r = 0; r < nn.weight[i].getRowLength(); ++r) {
+				for (size_t c = 0; c < nn.weight[i].getColLength(); ++c) {
+					nn.weight[i](r, c) = j["weights"][i][r][c].get<float>();
+				}
 			}
 		}
 		// Load Biases
-		for (size_t i = 0; i < nn.hiddenLayerLen + 1; ++i) {
-			std::vector<float> b_data =
-				j.at("biases").at(i).get<std::vector<float>>();
-			nn.bias[i] = DMatrix(b_data);
+		for (size_t i = 0; i <= nn.hiddenLayerLen; ++i) {
+			for (size_t r = 0; r < nn.bias[i].getRowLength(); ++r) {
+				for (size_t c = 0; c < nn.bias[i].getColLength(); ++c) {
+					nn.bias[i](r, c) = j["bias"][i][r][c].get<float>();
+				}
+			}
 		}
 		return (nn);
 	}
