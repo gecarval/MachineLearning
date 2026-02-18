@@ -341,17 +341,16 @@ void DrawLoadingBar(int currentEpoch, int totalEpochs, int currentIndex,
 	const double timeLeftThisEpoch = averageItemTime * itemsLeftInCurrentEpoch;
 
 	// 2. Full epochs remaining AFTER the current one
-	// If currentEpoch is 0 and total is 100, there are 99 full epochs left
-	const int	 fullEpochsRemaining = totalEpochs - (currentEpoch + 1);
+	const int	 fullEpochsRemaining = totalEpochs - currentEpoch - 1;
 	const double timeForFutureEpochs =
-		(averageItemTime * totalItems) * fullEpochsRemaining;
+		averageItemTime * totalItems * fullEpochsRemaining;
 
 	const double timeLeftForAllTraining =
 		timeLeftThisEpoch + timeForFutureEpochs;
 
 	// Formatting seconds into MM:SS for better readability
-	const int mins = static_cast<int>(timeLeftForAllTraining * 10) / 60;
-	const int secs = static_cast<int>(timeLeftForAllTraining * 10) % 60;
+	const int mins = static_cast<int>(timeLeftForAllTraining) / 60;
+	const int secs = static_cast<int>(timeLeftForAllTraining) % 60;
 
 	ClearBackground(RAYWHITE);
 
@@ -463,7 +462,7 @@ static void handleKeyboardInput(Machine &machine) {
 	}
 
 	if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_T)) {
-		static const int epoch = 50;
+		static const int epoch = 10;
 		trainModel(machine, epoch);
 		TraceLog(LOG_INFO, "Trained digit: %d", epoch);
 	}
