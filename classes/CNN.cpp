@@ -26,7 +26,7 @@ ConvNeuralNetwork::ConvNeuralNetwork(const size_t imgW, const size_t imgH,
 			const size_t currentKernelSize = this->kernelSize;
 			DMatrix		 k(currentKernelSize, currentKernelSize);
 			k.randomize(currentKernelSize * currentKernelSize *
-						this->filtersDepth * this->numFilters);
+						this->filtersDepth);
 			this->kernels[i].push_back(k);
 			this->kernelBiases[i].push_back(0.01f);
 		}
@@ -46,7 +46,7 @@ ConvNeuralNetwork::ConvNeuralNetwork(const size_t imgW, const size_t imgH,
 		throw std::invalid_argument("Kernel size and number of filters result "
 									"in invalid output dimensions");
 	}
-	long flattenedSize = convOutW * convOutH * this->numFilters;
+	const size_t flattenedSize = convOutW * convOutH * this->numFilters;
 	// 3. Initialize the internal NeuralNetwork attribute
 	this->classifier =
 		NeuralNetwork(flattenedSize, HiddenNodes, outputNodes, 1);
@@ -92,7 +92,7 @@ ConvNeuralNetwork::ConvNeuralNetwork(const size_t imgW, const size_t imgH,
 					: this->kernelSize - j;
 			DMatrix k(currentKernelSize, currentKernelSize);
 			k.randomize(currentKernelSize * currentKernelSize *
-						this->filtersDepth * this->numFilters);
+						this->filtersDepth);
 			this->kernels[i].push_back(k);
 			this->kernelBiases[i].push_back(0.01f);
 		}
@@ -112,7 +112,7 @@ ConvNeuralNetwork::ConvNeuralNetwork(const size_t imgW, const size_t imgH,
 		throw std::invalid_argument("Kernel size and number of filters result "
 									"in invalid output dimensions");
 	}
-	long flattenedSize = convOutW * convOutH * this->numFilters;
+	const size_t flattenedSize = convOutW * convOutH * this->numFilters;
 	// 3. Initialize the internal NeuralNetwork attribute
 	this->classifier =
 		NeuralNetwork(flattenedSize, HiddenNodes, outputNodes, hiddenLayerLen);
