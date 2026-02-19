@@ -39,7 +39,7 @@ struct Canvas {
 		for (int y = 0; y < canvasImage.height; y++) {
 			for (int x = 0; x < canvasImage.width; x++) {
 				const Color colorVal = GetImageColor(canvasImage, x, y);
-				const float value = static_cast<float>(colorVal.r / 255.0f);
+				const float value = static_cast<float>(colorVal.r) / 255.0f;
 				this->grid[y][x] = value;
 			}
 		}
