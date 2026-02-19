@@ -336,7 +336,6 @@ void ConvNeuralNetwork::backpropConvolution(
 		// 1. dZ = Error from front * Derivative of the activation (DLeakyReLU)
 		DMatrix dZ =
 			preActivation[f * this->filtersDepth + static_cast<size_t>(d)];
-		dZ.map(LeakyReLU);
 		dZ.map(DLeakyReLU);
 		// Hadamard multiplication (element by element)
 		DMatrix upstreamError = currentError;
