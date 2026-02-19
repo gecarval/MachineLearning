@@ -73,15 +73,15 @@ void initEngine(Machine &machine) {
 	// CNN Settings (for digit recognition - 10 classes)
 	constexpr unsigned int CANVAS_WIDTH = 28;
 	constexpr unsigned int CANVAS_HEIGHT = 28;
-	constexpr unsigned int CNN_FILTERS = 8;
-	constexpr unsigned int CNN_FILTERS_DEPHT = 1;
+	constexpr unsigned int CNN_FILTERS = 16;
+	constexpr unsigned int CNN_FILTERS_DEPHT = 2;
 	constexpr unsigned int CNN_KERNEL_SIZE = 5;
-	constexpr unsigned int CNN_MIN_KERNEL_SIZE = 3;
+	constexpr unsigned int CNN_MIN_KERNEL_SIZE = 5;
 	constexpr unsigned int CNN_HIDDEN_NODES = 128;
 	constexpr unsigned int CNN_OUTPUT_NODES = 10; // Digits 0-9
 	constexpr unsigned int CNN_HIDDEN_LAYERS_LEN = 1;
-	constexpr float		   CNN_LEARNING_RATE = 0.01f;
-	constexpr float		   CNN_CONVLEARNING_RATE = 0.001f;
+	constexpr float		   CNN_LEARNING_RATE = 0.001f;
+	constexpr float		   CNN_CONVLEARNING_RATE = 0.01f;
 	machine.CNN = ConvNeuralNetwork(CANVAS_WIDTH, CANVAS_HEIGHT, CNN_FILTERS,
 									CNN_FILTERS_DEPHT, CNN_KERNEL_SIZE,
 									CNN_MIN_KERNEL_SIZE, CNN_HIDDEN_NODES,
