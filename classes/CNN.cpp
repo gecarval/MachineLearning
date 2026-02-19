@@ -2,7 +2,7 @@
 
 ConvNeuralNetwork::ConvNeuralNetwork()
 	: inputWidth(0), inputHeight(0), numFilters(0), filtersDepth(0),
-	  kernelSize(0), convLearnRate(0.001f) {
+	  kernelSize(0), convLearnRate(0.01f) {
 }
 
 ConvNeuralNetwork::ConvNeuralNetwork(const size_t imgW, const size_t imgH,
@@ -10,7 +10,7 @@ ConvNeuralNetwork::ConvNeuralNetwork(const size_t imgW, const size_t imgH,
 									 const size_t HiddenNodes,
 									 const size_t outputNodes)
 	: inputWidth(imgW), inputHeight(imgH), numFilters(3), filtersDepth(1),
-	  kernelSize(kSize), convLearnRate(0.001f) {
+	  kernelSize(kSize), convLearnRate(0.01f) {
 	// Basic validation
 	if (imgW < kSize || imgH < kSize) {
 		throw std::invalid_argument(
@@ -62,7 +62,7 @@ ConvNeuralNetwork::ConvNeuralNetwork(const size_t imgW, const size_t imgH,
 									 const size_t outputNodes,
 									 const size_t hiddenLayerLen)
 	: inputWidth(imgW), inputHeight(imgH), numFilters(filters),
-	  filtersDepth(filtersDepth), kernelSize(kSize), convLearnRate(0.001f) {
+	  filtersDepth(filtersDepth), kernelSize(kSize), convLearnRate(0.01f) {
 	// Basic validation
 	if (kSize < minKSize) {
 		throw std::invalid_argument(
@@ -414,8 +414,11 @@ void ConvNeuralNetwork::backpropConvolution(
 			currentError = dA_prev;
 		}
 		// 5. Update the Weights of the Kernel and Biases (Gradient Descent)
-		this->kernels[f][d] -= (dW * this->convLearnRate);
-		this->kernelBiases[f][d] -= (dZ.totalSum() * this->convLearnRate);
+		const float normFactor =
+			1.0f / static_cast<float>(dZ.getRowLength() * dZ.getColLength());
+		this->kernels[f][d] -= (dW * this->convLearnRate * normFactor);
+		this->kernelBiases[f][d] -=
+			(dZ.totalSum() * normFactor * this->convLearnRate);
 	}
 }
 
