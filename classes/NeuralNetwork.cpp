@@ -103,7 +103,7 @@ float DLinear(const float x) {
 DMatrix Softmax(const DMatrix &x) {
 	DMatrix result(x.getRowLength(), x.getColLength());
 	// Find max value for numerical stability
-	float max_val = 1.0f; // x.getValue(0, 0);
+	float max_val = x.getValue(0, 0);
 	for (size_t i = 0; i < x.getRowLength(); ++i) {
 		for (size_t j = 0; j < x.getColLength(); ++j) {
 			float val = x.getValue(i, j);
@@ -260,13 +260,15 @@ DMatrix NeuralNetwork::feedForward(const DMatrix &input) const {
 
 DMatrix NeuralNetwork::train(const DMatrix &inputArray,
 							 const DMatrix &desired) {
-	// Forward pass - store all layer outputs
+	// Forward pass - store all layer outputs AND pre-activations
 	std::vector<DMatrix> outputs(this->hiddenLayerLen + 2);
-	outputs[0] = inputArray; // Store input as output[0]
+	std::vector<DMatrix> preActivations(this->hiddenLayerLen + 1);
+	outputs[0] = inputArray;
 	DMatrix res(inputArray);
 	for (size_t i = 0; i <= this->hiddenLayerLen; i++) {
 		res = this->weight[i] * res;
 		res += this->bias[i];
+		preActivations[i] = res; // z = W*x + b, saved before activation
 		if (i == this->hiddenLayerLen) {
 			if (useSoftmax) {
 				res = Softmax(res);
@@ -280,36 +282,49 @@ DMatrix NeuralNetwork::train(const DMatrix &inputArray,
 	}
 	// Backward pass
 	DMatrix layerError = desired - outputs[this->hiddenLayerLen + 1];
-	// Iterate backwards through layers
 	for (long i = static_cast<long>(this->hiddenLayerLen); i >= 0; i--) {
-		DMatrix gradient = outputs[i + 1];
-		// Compute gradient based on activation function
+		DMatrix gradient;
 		if (i == static_cast<long>(this->hiddenLayerLen)) {
 			if (useSoftmax) {
-				// With softmax + cross-entropy, gradient is simply (output -
-				// target)
 				gradient = layerError;
+				gradient *=
+					(1.0f / static_cast<float>(this->numberOfOutputNodes));
 			} else {
+				// Pre-activation z is correct input for all output derivatives
+				if (this->OutputDeactivate == DSigmoid) {
+					gradient = outputs[i + 1];
+				} else {
+					gradient = preActivations[i];
+				}
 				gradient.map(this->OutputDeactivate);
 				gradient.multiply(layerError);
 			}
 		} else {
+			// Pre-activation z is correct for ReLU, LeakyReLU, Tanh, SiLU.
+			// DSigmoid is the exception: it's defined as s*(1-s) and coded
+			// to receive the post-activation value, so use outputs[i+1].
+			if (this->HiddenDeactivate == DSigmoid) {
+				gradient = outputs[i + 1];
+			} else {
+				gradient = preActivations[i];
+			}
 			gradient.map(this->HiddenDeactivate);
 			gradient.multiply(layerError);
 		}
-		gradient.map(errorTolerance);
+		const DMatrix unscaledGradient = (i == 0) ? gradient : DMatrix();
+		// gradient.map(errorTolerance);
 		gradient *= this->learnRate;
 		gradient.map(clampGradient);
-		// Save ol Weight to backwards passing
 		const DMatrix oldWeightT = this->weight[i].transpose();
-		// Compute weight delta
 		const DMatrix prevOutput = outputs[i].transpose();
 		const DMatrix weightDelta = gradient * prevOutput;
-		// Update weights and biases
 		this->weight[i] += weightDelta;
 		this->bias[i] += gradient;
-		// Propagate error backwards
-		layerError = oldWeightT * gradient;
+		if (i == 0) {
+			layerError = oldWeightT * unscaledGradient;
+		} else {
+			layerError = oldWeightT * gradient;
+		}
 	}
 	this->clampWeightsAndBiases();
 	return (layerError);

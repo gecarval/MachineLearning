@@ -66,7 +66,7 @@ static void inputHandler(Machine &machine) {
 								   machine.NN.getNumberOfOutputsNodes(),
 								   machine.NN.getHiddenLayerLength());
 		machine.NN.setLearnRate(ln);
-		machine.NN.enableSoftmax(true);
+		machine.NN.setOutputLayerActivation(Sigmoid, DSigmoid);
 	}
 	if (IsKeyPressed(KEY_D)) {
 		trainData.clear();
