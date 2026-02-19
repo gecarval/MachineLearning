@@ -76,10 +76,7 @@ struct Canvas {
 									   const size_t		  depth) {
 		DMatrix featureMap =
 			machine.CNN.getConvOnAFilterFunnel(input, filter, depth);
-		for (size_t i = 0; i < depth + 2; i++) {
-			featureMap = featureMap.transpose();
-			i++;
-		}
+		featureMap = featureMap.transpose();
 		for (size_t r = 0; r < featureMap.getRowLength(); r++) {
 			for (size_t c = 0; c < featureMap.getColLength(); c++) {
 				this->setPixel(r, c, featureMap(r, c));
