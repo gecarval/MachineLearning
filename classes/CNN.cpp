@@ -316,7 +316,7 @@ void ConvNeuralNetwork::train(const DMatrix &inputImage,
 		errorsPerFilter.push_back(e);
 	}
 	// 5. Backpropagate error through convolutional layers
-	for (long f = static_cast<long>(this->numFilters) - 1; f >= 0; --f) {
+	for (long f = 0; f < static_cast<long>(this->numFilters); ++f) {
 		this->backpropConvolution(imageMatrix, featureMaps, preActivation,
 								  errorsPerFilter[f], f);
 	}
