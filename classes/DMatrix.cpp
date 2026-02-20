@@ -30,16 +30,10 @@ DMatrix &DMatrix::operator=(const DMatrix &other) {
 }
 
 float &DMatrix::operator()(size_t row, size_t col) {
-	if (row >= rows || col >= cols) {
-		throw std::out_of_range("Matrix index out of bounds");
-	}
 	return (this->matrix[row * this->cols + col]);
 }
 
 const float &DMatrix::operator()(size_t row, size_t col) const {
-	if (row >= this->rows || col >= this->cols) {
-		throw std::out_of_range("Matrix index out of bounds");
-	}
 	return (this->matrix[row * this->cols + col]);
 }
 
@@ -230,51 +224,6 @@ std::vector<float> DMatrix::toVector() const {
 	return (this->matrix);
 }
 
-DMatrix DMatrix::maxPooling(const unsigned int poolSize) const {
-	if (poolSize == 0 || this->rows < poolSize || this->cols < poolSize) {
-		throw std::runtime_error("Invalid pool size or matrix too small");
-	}
-	size_t	outRows = this->rows / poolSize;
-	size_t	outCols = this->cols / poolSize;
-	DMatrix output(outRows, outCols);
-	for (size_t i = 0; i < outRows; i++) {
-		for (size_t j = 0; j < outCols; j++) {
-			float maxVal = (*this)(i * poolSize, j * poolSize);
-			for (size_t ii = 0; ii < poolSize; ii++) {
-				for (size_t jj = 0; jj < poolSize; jj++) {
-					float current =
-						(*this)(i * poolSize + ii, j * poolSize + jj);
-					if (current > maxVal) maxVal = current;
-				}
-			}
-			output(i, j) = maxVal;
-		}
-	}
-	return (output);
-}
-
-DMatrix DMatrix::averagePooling(const unsigned int poolSize) const {
-	if (poolSize == 0 || this->rows < poolSize || this->cols < poolSize) {
-		throw std::runtime_error("Invalid pool size or matrix too small");
-	}
-	size_t	outRows = this->rows / poolSize;
-	size_t	outCols = this->cols / poolSize;
-	DMatrix output(outRows, outCols);
-	float	area = static_cast<float>(poolSize * poolSize);
-	for (size_t i = 0; i < outRows; i++) {
-		for (size_t j = 0; j < outCols; j++) {
-			float sum = 0.0f;
-			for (size_t ii = 0; ii < poolSize; ii++) {
-				for (size_t jj = 0; jj < poolSize; jj++) {
-					sum += (*this)(i * poolSize + ii, j * poolSize + jj);
-				}
-			}
-			output(i, j) = sum / area;
-		}
-	}
-	return (output);
-}
-
 DMatrix DMatrix::transpose() const {
 	DMatrix result(this->cols, this->rows);
 	for (size_t i = 0; i < this->rows; ++i) {
@@ -285,49 +234,201 @@ DMatrix DMatrix::transpose() const {
 	return (result);
 }
 
+// Optimized maxPooling: raw pointer, no bounds checks, 2x2 special-cased
+// with explicit 4-element compare to help compiler generate SIMD maxps.
+DMatrix DMatrix::maxPooling(const unsigned int poolSize) const {
+	if (poolSize == 0 || this->rows < poolSize || this->cols < poolSize) {
+		throw std::runtime_error("Invalid pool size or matrix too small");
+	}
+	const size_t outRows = this->rows / poolSize;
+	const size_t outCols = this->cols / poolSize;
+	const size_t inCols = this->cols;
+	DMatrix		 output(outRows, outCols);
+
+	const float *__restrict__ inp = this->matrix.data();
+	float *__restrict__ out = output.matrix.data();
+
+	// Fast path for the common 2x2 case used everywhere in CNN
+	if (poolSize == 2) {
+		for (size_t i = 0; i < outRows; ++i) {
+			const float *row0 = inp + (i * 2) * inCols;
+			const float *row1 = inp + (i * 2 + 1) * inCols;
+			float		*orow = out + i * outCols;
+#if defined(__clang__)
+#pragma clang loop vectorize(enable) interleave(enable)
+#elif defined(__GNUC__)
+#pragma GCC ivdep
+#endif
+			for (size_t j = 0; j < outCols; ++j) {
+				const float a = row0[j * 2];
+				const float b = row0[j * 2 + 1];
+				const float c = row1[j * 2];
+				const float d = row1[j * 2 + 1];
+				const float ab = a > b ? a : b;
+				const float cd = c > d ? c : d;
+				orow[j] = ab > cd ? ab : cd;
+			}
+		}
+		return (output);
+	}
+
+	// General path for other pool sizes
+	for (size_t i = 0; i < outRows; ++i) {
+		for (size_t j = 0; j < outCols; ++j) {
+			float maxVal = inp[(i * poolSize) * inCols + (j * poolSize)];
+			for (size_t pi = 0; pi < poolSize; ++pi) {
+				const float *row =
+					inp + (i * poolSize + pi) * inCols + j * poolSize;
+				for (size_t pj = 0; pj < poolSize; ++pj) {
+					if (row[pj] > maxVal) {
+						maxVal = row[pj];
+					}
+				}
+			}
+			out[i * outCols + j] = maxVal;
+		}
+	}
+	return (output);
+}
+
+// Optimized averagePooling: raw pointer, no bounds checks, 2x2 special-cased
+// with explicit 4-sum to help compiler generate SIMD maxps.
+DMatrix DMatrix::averagePooling(const unsigned int poolSize) const {
+	if (poolSize == 0 || this->rows < poolSize || this->cols < poolSize) {
+		throw std::runtime_error("Invalid pool size or matrix too small");
+	}
+	const size_t outRows = this->rows / poolSize;
+	const size_t outCols = this->cols / poolSize;
+	const size_t inCols = this->cols;
+	DMatrix		 output(outRows, outCols);
+
+	const float *__restrict__ inp = this->matrix.data();
+	float *__restrict__ out = output.matrix.data();
+
+	// Fast path for the common 2x2 case used everywhere in CNN
+	if (poolSize == 2) {
+		for (size_t i = 0; i < outRows; ++i) {
+			const float *row0 = inp + (i * 2) * inCols;
+			const float *row1 = inp + (i * 2 + 1) * inCols;
+			float		*orow = out + i * outCols;
+#if defined(__clang__)
+#pragma clang loop vectorize(enable) interleave(enable)
+#elif defined(__GNUC__)
+#pragma GCC ivdep
+#endif
+			for (size_t j = 0; j < outCols; ++j) {
+				const float a = row0[j * 2];
+				const float b = row0[j * 2 + 1];
+				const float c = row1[j * 2];
+				const float d = row1[j * 2 + 1];
+				orow[j] = (a + b + c + d) / 4.0f;
+			}
+		}
+		return (output);
+	}
+
+	// General path for other pool sizes
+	for (size_t i = 0; i < outRows; ++i) {
+		for (size_t j = 0; j < outCols; ++j) {
+			float sumVal = 0.0f;
+			for (size_t pi = 0; pi < poolSize; ++pi) {
+				const float *row =
+					inp + (i * poolSize + pi) * inCols + j * poolSize;
+				for (size_t pj = 0; pj < poolSize; ++pj) {
+					sumVal += row[pj];
+				}
+			}
+			out[i * outCols + j] =
+				sumVal / static_cast<float>((poolSize * poolSize));
+		}
+	}
+	return (output);
+}
+
+// Optimized kernelMult: direct pointer access, row-cached kernel rows,
+// sequential output writes. Avoids bounds-checked operator() on hot path.
 DMatrix DMatrix::kernelMult(const DMatrix &kernel) const {
 	if (this->rows < kernel.rows || this->cols < kernel.cols) {
 		throw std::runtime_error("Kernel Mult Mismatch");
 	}
 	const size_t outRows = this->rows - kernel.rows + 1;
 	const size_t outCols = this->cols - kernel.cols + 1;
+	const size_t kRows = kernel.rows;
+	const size_t kCols = kernel.cols;
+	const size_t inCols = this->cols;
 	DMatrix		 output(outRows, outCols);
-	for (size_t i = 0; i < output.rows; i++) {
-		for (size_t j = 0; j < output.cols; j++) {
-			float val = 0;
-			for (size_t ki = 0; ki < kernel.rows; ki++) {
-				for (size_t kj = 0; kj < kernel.cols; kj++) {
-					val += (*this)(ki + i, kj + j) * kernel(ki, kj);
+
+	const float *__restrict__ inp = this->matrix.data();
+	const float *__restrict__ ker = kernel.matrix.data();
+	float *__restrict__ out = output.matrix.data();
+
+	for (size_t i = 0; i < outRows; ++i) {
+		for (size_t j = 0; j < outCols; ++j) {
+			float sum = 0.0f;
+			// Walk kernel rows: each kernel row is a contiguous slice of
+			// the input row starting at (i+ki, j). Both pointers are
+			// sequential in their inner loop → SIMD-friendly.
+			for (size_t ki = 0; ki < kRows; ++ki) {
+				const float *__restrict__ inp_row = inp + (i + ki) * inCols + j;
+				const float *__restrict__ ker_row = ker + ki * kCols;
+#if defined(__clang__)
+#pragma clang loop vectorize(enable) interleave(enable)
+#elif defined(__GNUC__)
+#pragma GCC ivdep
+#endif
+				for (size_t kj = 0; kj < kCols; ++kj) {
+					sum += inp_row[kj] * ker_row[kj];
 				}
 			}
-			output(i, j) = val;
+			out[i * outCols + j] = sum;
 		}
 	}
 	return (output);
 }
 
+// Optimized kernelMultHalfPadded: same as above but pads inline without
+// allocating a full padded matrix — avoids O(imgW*imgH) allocation and
+// a second pass over the data.
 DMatrix DMatrix::kernelMultHalfPadded(const DMatrix &kernel) const {
 	if (this->rows < kernel.rows || this->cols < kernel.cols) {
 		throw std::runtime_error("Kernel Mult Mismatch");
 	}
-	const unsigned int rowDiff = kernel.rows / 2;
-	const unsigned int colDiff = kernel.cols / 2;
-	DMatrix input(this->rows + rowDiff * 2, this->cols + colDiff * 2);
-	for (size_t i = 0; i < this->rows; i++) {
-		for (size_t j = 0; j < this->cols; j++) {
-			input(i + rowDiff, j + colDiff) = (*this)(i, j);
-		}
-	}
-	DMatrix output(this->rows, this->cols);
-	for (size_t i = 0; i < output.rows; i++) {
-		for (size_t j = 0; j < output.cols; j++) {
-			float val = 0;
-			for (size_t ki = 0; ki < kernel.rows; ki++) {
-				for (size_t kj = 0; kj < kernel.cols; kj++) {
-					val += input(i + ki, j + kj) * kernel(ki, kj);
+	const size_t padR = kernel.rows / 2;
+	const size_t padC = kernel.cols / 2;
+	const size_t kRows = kernel.rows;
+	const size_t kCols = kernel.cols;
+	const size_t inRows = this->rows;
+	const size_t inCols = this->cols;
+	DMatrix		 output(inRows, inCols); // same-size output (same padding)
+
+	const float *__restrict__ inp = this->matrix.data();
+	const float *__restrict__ ker = kernel.matrix.data();
+	float *__restrict__ out = output.matrix.data();
+
+	for (size_t i = 0; i < inRows; ++i) {
+		for (size_t j = 0; j < inCols; ++j) {
+			float sum = 0.0f;
+			for (size_t ki = 0; ki < kRows; ++ki) {
+				// Map back to padded coordinate, check bounds inline
+				const long si =
+					static_cast<long>(i + ki) - static_cast<long>(padR);
+				if (si < 0 || static_cast<size_t>(si) >= inRows) continue;
+				const float *__restrict__ ker_row = ker + ki * kCols;
+				const float *__restrict__ inp_row =
+					inp + static_cast<size_t>(si) * inCols;
+#if defined(__clang__)
+#pragma clang loop vectorize(enable) interleave(enable)
+#elif defined(__GNUC__)
+#pragma GCC ivdep
+#endif
+				for (size_t kj = 0; kj < kCols; ++kj) {
+					const long sj =
+						static_cast<long>(j + kj) - static_cast<long>(padC);
+					if (sj < 0 || static_cast<size_t>(sj) >= inCols) continue;
+					sum += inp_row[static_cast<size_t>(sj)] * ker_row[kj];
 				}
 			}
-			output(i, j) = val;
+			out[i * inCols + j] = sum;
 		}
 	}
 	return (output);
