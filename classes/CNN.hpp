@@ -38,7 +38,11 @@ class ConvNeuralNetwork {
 							 const std::vector<DMatrix> &preActivation,
 							 const DMatrix &errorFromFC, const size_t i);
 
+	std::vector<float> feedForward(const DMatrix &inputImage) const;
+	void			   train(const DMatrix &inputImage, const DMatrix &target);
+
   public:
+	static constexpr float DefaultConvLearnRate = 0.001f;
 	~ConvNeuralNetwork();
 	ConvNeuralNetwork();
 	ConvNeuralNetwork(const size_t imgW, const size_t imgH, const size_t kSize,
@@ -51,8 +55,9 @@ class ConvNeuralNetwork {
 	ConvNeuralNetwork(const ConvNeuralNetwork &other);
 	ConvNeuralNetwork &operator=(const ConvNeuralNetwork &other);
 
-	std::vector<float> feedForward(const DMatrix &inputImage) const;
-	void			   train(const DMatrix &inputImage, const DMatrix &target);
+	std::vector<float> feedForward(const std::vector<float> &inputImage) const;
+	void			   train(const std::vector<float> &inputImage,
+							 const std::vector<float> &target);
 
 	void				 setClassifier(const NeuralNetwork &classifier);
 	NeuralNetwork		&getClassifier();
