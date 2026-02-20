@@ -325,7 +325,7 @@ void loadTrainingData(
 		for (int fileNumber = 0; fileNumber < 10000; fileNumber++) {
 			const std::string subdirectory = std::to_string(number);
 			const std::string num = std::to_string(fileNumber);
-			const std::string pad = std::string(4 - num.length(), '0');
+			const std::string pad = std::string(5 - num.length(), '0');
 			const std::string image = "/image_" + pad + num;
 			const std::string filename = directory + subdirectory + image;
 			const std::string extension = ".png";

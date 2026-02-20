@@ -79,9 +79,9 @@ void initEngine(Machine &machine) {
 	constexpr unsigned int CNN_MIN_KERNEL_SIZE = 5;
 	constexpr unsigned int CNN_HIDDEN_NODES = 128;
 	constexpr unsigned int CNN_OUTPUT_NODES = 10; // Digits 0-9
-	constexpr unsigned int CNN_HIDDEN_LAYERS_LEN = 2;
+	constexpr unsigned int CNN_HIDDEN_LAYERS_LEN = 1;
 	constexpr float		   CNN_LEARNING_RATE = 0.01f;
-	constexpr float		   CNN_CONVLEARNING_RATE = 0.01f;
+	constexpr float		   CNN_CONVLEARNING_RATE = 0.001f;
 	machine.CNN = ConvNeuralNetwork(CANVAS_WIDTH, CANVAS_HEIGHT, CNN_FILTERS,
 									CNN_FILTERS_DEPHT, CNN_KERNEL_SIZE,
 									CNN_MIN_KERNEL_SIZE, CNN_HIDDEN_NODES,
