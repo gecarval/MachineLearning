@@ -53,7 +53,7 @@ class NeuralNetwork {
   public:
 	static const int CLAMP = 10000;
 	static const int TOLERANCE = 10000;
-	static const int ALPHA = 10;
+	static const int ALPHA = 100;
 
 	virtual ~NeuralNetwork();
 	NeuralNetwork();

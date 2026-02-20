@@ -46,8 +46,16 @@ class DMatrix {
 	DMatrix			   transpose() const;
 	DMatrix			   maxPooling(const unsigned int poolSize) const;
 	DMatrix			   averagePooling(const unsigned int poolSize) const;
+	DMatrix			   convolve(const DMatrix &kernel) const;
+	DMatrix			   convolveHalfPadded(const DMatrix &kernel) const;
+	DMatrix			   convolveFullPadded(const DMatrix &kernel) const;
 	DMatrix			   kernelMult(const DMatrix &kernel) const;
 	DMatrix			   kernelMultHalfPadded(const DMatrix &kernel) const;
+	DMatrix			   kernelMultFullPadded(const DMatrix &kernel) const;
+	DMatrix			   maxPoolingArgmax(const unsigned int	 poolSize,
+										std::vector<size_t> &argmax) const;
+	DMatrix			   maxPoolingUnpool(const std::vector<size_t> &argmax,
+										size_t prePoolRows, size_t prePoolCols) const;
 	float			   totalSum() const;
 	void			   randomize();
 	void			   randomize(size_t fanIn);

@@ -345,6 +345,154 @@ DMatrix DMatrix::averagePooling(const unsigned int poolSize) const {
 	return (output);
 }
 
+DMatrix DMatrix::convolve(const DMatrix &kernel) const {
+	if (this->rows < kernel.rows || this->cols < kernel.cols) {
+		throw std::runtime_error("Kernel Size Mismatch");
+	}
+
+	const size_t outRows = this->rows - kernel.rows + 1;
+	const size_t outCols = this->cols - kernel.cols + 1;
+	const size_t kRows = kernel.rows;
+	const size_t kCols = kernel.cols;
+	const size_t inCols = this->cols;
+	DMatrix		 output(outRows, outCols);
+
+	const float *__restrict__ inp = this->matrix.data();
+	const float *__restrict__ ker = kernel.matrix.data();
+	float *__restrict__ out = output.matrix.data();
+
+	for (size_t i = 0; i < outRows; ++i) {
+		for (size_t j = 0; j < outCols; ++j) {
+			float sum = 0.0f;
+
+			for (size_t ki = 0; ki < kRows; ++ki) {
+				// Input row remains the same
+				const float *__restrict__ inp_ptr = inp + (i + ki) * inCols + j;
+
+				// FLIP: Access the kernel row from bottom to top
+				// (kRows - 1 - ki) gives us the flipped row index
+				const float *__restrict__ ker_row =
+					ker + (kRows - 1 - ki) * kCols;
+
+#if defined(__clang__)
+#pragma clang loop vectorize(enable) interleave(enable)
+#elif defined(__GNUC__)
+#pragma GCC ivdep
+#endif
+				for (size_t kj = 0; kj < kCols; ++kj) {
+					// FLIP: Access the kernel column from right to left
+					// (kCols - 1 - kj) gives us the flipped column index
+					sum += inp_ptr[kj] * ker_row[kCols - 1 - kj];
+				}
+			}
+			out[i * outCols + j] = sum;
+		}
+	}
+	return output;
+}
+
+DMatrix DMatrix::convolveHalfPadded(const DMatrix &kernel) const {
+	if (this->rows < kernel.rows || this->cols < kernel.cols) {
+		throw std::runtime_error("Kernel Size Mismatch");
+	}
+	const size_t padR = kernel.rows / 2;
+	const size_t padC = kernel.cols / 2;
+	const size_t kRows = kernel.rows;
+	const size_t kCols = kernel.cols;
+	const size_t inRows = this->rows;
+	const size_t inCols = this->cols;
+	DMatrix		 output(inRows, inCols);
+
+	const float *__restrict__ inp = this->matrix.data();
+	const float *__restrict__ ker = kernel.matrix.data();
+	float *__restrict__ out = output.matrix.data();
+
+	for (size_t i = 0; i < inRows; ++i) {
+		for (size_t j = 0; j < inCols; ++j) {
+			float sum = 0.0f;
+			for (size_t ki = 0; ki < kRows; ++ki) {
+				const long si =
+					static_cast<long>(i + ki) - static_cast<long>(padR);
+				if (si < 0 || static_cast<size_t>(si) >= inRows) continue;
+
+				// FLIP: Kernel row access reversed
+				const float *__restrict__ ker_row =
+					ker + (kRows - 1 - ki) * kCols;
+				const float *__restrict__ inp_row =
+					inp + static_cast<size_t>(si) * inCols;
+
+#if defined(__clang__)
+#pragma clang loop vectorize(enable) interleave(enable)
+#elif defined(__GNUC__)
+#pragma GCC ivdep
+#endif
+				for (size_t kj = 0; kj < kCols; ++kj) {
+					const long sj =
+						static_cast<long>(j + kj) - static_cast<long>(padC);
+					if (sj < 0 || static_cast<size_t>(sj) >= inCols) continue;
+
+					// FLIP: Kernel column access reversed
+					sum += inp_row[static_cast<size_t>(sj)] *
+						   ker_row[kCols - 1 - kj];
+				}
+			}
+			out[i * inCols + j] = sum;
+		}
+	}
+	return output;
+}
+
+DMatrix DMatrix::convolveFullPadded(const DMatrix &kernel) const {
+	if (kernel.rows == 0 || kernel.cols == 0)
+		throw std::runtime_error("Invalid Kernel Size");
+
+	const size_t padR = kernel.rows - 1;
+	const size_t padC = kernel.cols - 1;
+	const size_t padRows = this->rows + padR * 2;
+	const size_t padCols = this->cols + padC * 2;
+
+	DMatrix padded(padRows, padCols);
+	for (size_t i = 0; i < this->rows; ++i)
+		for (size_t j = 0; j < this->cols; ++j)
+			padded.matrix[(i + padR) * padCols + (j + padC)] =
+				this->matrix[i * this->cols + j];
+
+	const size_t outRows = padRows - kernel.rows + 1;
+	const size_t outCols = padCols - kernel.cols + 1;
+	DMatrix		 result(outRows, outCols);
+
+	const float *__restrict__ pad = padded.matrix.data();
+	const float *__restrict__ ker = kernel.matrix.data();
+	float *__restrict__ out = result.matrix.data();
+	const size_t kRows = kernel.rows;
+	const size_t kCols = kernel.cols;
+
+	for (size_t i = 0; i < outRows; ++i) {
+		for (size_t j = 0; j < outCols; ++j) {
+			float sum = 0.0f;
+			for (size_t ki = 0; ki < kRows; ++ki) {
+				const float *__restrict__ pad_row =
+					pad + (i + ki) * padCols + j;
+
+				// FLIP: Kernel row access reversed
+				const float *__restrict__ ker_row =
+					ker + (kRows - 1 - ki) * kCols;
+
+#if defined(__clang__)
+#pragma clang loop vectorize(enable) interleave(enable)
+#elif defined(__GNUC__)
+#pragma GCC ivdep
+#endif
+				for (size_t kj = 0; kj < kCols; ++kj)
+					// FLIP: Kernel column access reversed
+					sum += pad_row[kj] * ker_row[kCols - 1 - kj];
+			}
+			out[i * outCols + j] = sum;
+		}
+	}
+	return result;
+}
+
 // Optimized kernelMult: direct pointer access, row-cached kernel rows,
 // sequential output writes. Avoids bounds-checked operator() on hot path.
 DMatrix DMatrix::kernelMult(const DMatrix &kernel) const {
@@ -432,6 +580,144 @@ DMatrix DMatrix::kernelMultHalfPadded(const DMatrix &kernel) const {
 		}
 	}
 	return (output);
+}
+
+// Full convolution via full padding (pad = kernel_size - 1 on each side).
+// Output size = input_size + kernel_size - 1.
+DMatrix DMatrix::kernelMultFullPadded(const DMatrix &kernel) const {
+	if (kernel.rows == 0 || kernel.cols == 0)
+		throw std::runtime_error("Kernel Mult Mismatch");
+	const size_t padR = kernel.rows - 1;
+	const size_t padC = kernel.cols - 1;
+	const size_t padRows = this->rows + padR * 2;
+	const size_t padCols = this->cols + padC * 2;
+	// Build zero-padded input
+	DMatrix padded(padRows, padCols); // zero-initialized
+	for (size_t i = 0; i < this->rows; ++i)
+		for (size_t j = 0; j < this->cols; ++j)
+			padded.matrix[(i + padR) * padCols + (j + padC)] =
+				this->matrix[i * this->cols + j];
+	// Result: padRows - kRows + 1 = (rows + 2*(kRows-1)) - kRows + 1 = rows +
+	// kRows - 1
+	const size_t outRows = padRows - kernel.rows + 1;
+	const size_t outCols = padCols - kernel.cols + 1;
+	DMatrix		 result(outRows, outCols);
+	const float *__restrict__ pad = padded.matrix.data();
+	const float *__restrict__ ker = kernel.matrix.data();
+	float *__restrict__ out = result.matrix.data();
+	const size_t kRows = kernel.rows;
+	const size_t kCols = kernel.cols;
+	for (size_t i = 0; i < outRows; ++i) {
+		for (size_t j = 0; j < outCols; ++j) {
+			float sum = 0.0f;
+			for (size_t ki = 0; ki < kRows; ++ki) {
+				const float *__restrict__ pad_row =
+					pad + (i + ki) * padCols + j;
+				const float *__restrict__ ker_row = ker + ki * kCols;
+#if defined(__clang__)
+#pragma clang loop vectorize(enable) interleave(enable)
+#elif defined(__GNUC__)
+#pragma GCC ivdep
+#endif
+				for (size_t kj = 0; kj < kCols; ++kj)
+					sum += pad_row[kj] * ker_row[kj];
+			}
+			out[i * outCols + j] = sum;
+		}
+	}
+	return (result);
+}
+
+// maxPoolingArgmax: like maxPooling but also records the flat index of the
+// winning element inside the pre-pool map into `argmax`. Used during the
+// training forward pass so backprop can route gradients through the exact
+// max position without re-scanning the feature map.
+// argmax[r*outCols + c] = row*prePoolCols + col  (flat index in *this)
+DMatrix DMatrix::maxPoolingArgmax(const unsigned int   poolSize,
+								  std::vector<size_t> &argmax) const {
+	if (poolSize == 0 || this->rows < poolSize || this->cols < poolSize)
+		throw std::runtime_error("Invalid pool size or matrix too small");
+	const size_t outRows = this->rows / poolSize;
+	const size_t outCols = this->cols / poolSize;
+	const size_t inCols = this->cols;
+	DMatrix		 output(outRows, outCols);
+	argmax.resize(outRows * outCols);
+
+	const float *__restrict__ inp = this->matrix.data();
+	float *__restrict__ out = output.matrix.data();
+	size_t *__restrict__ amax = argmax.data();
+
+	// Hardcoded 2x2 fast path (only pool size used in this CNN)
+	if (poolSize == 2) {
+		for (size_t r = 0; r < outRows; ++r) {
+			const float *row0 = inp + (r * 2) * inCols;
+			const float *row1 = inp + (r * 2 + 1) * inCols;
+			float		*orow = out + r * outCols;
+			size_t		*arow = amax + r * outCols;
+			for (size_t c = 0; c < outCols; ++c) {
+				const float a = row0[c * 2];
+				const float b = row0[c * 2 + 1];
+				const float c0 = row1[c * 2];
+				const float d = row1[c * 2 + 1];
+				float		maxVal = a;
+				size_t		maxIdx = (r * 2) * inCols + (c * 2);
+				if (b > maxVal) {
+					maxVal = b;
+					maxIdx = (r * 2) * inCols + (c * 2 + 1);
+				}
+				if (c0 > maxVal) {
+					maxVal = c0;
+					maxIdx = (r * 2 + 1) * inCols + (c * 2);
+				}
+				if (d > maxVal) {
+					maxVal = d;
+					maxIdx = (r * 2 + 1) * inCols + (c * 2 + 1);
+				}
+				orow[c] = maxVal;
+				arow[c] = maxIdx;
+			}
+		}
+		return (output);
+	}
+
+	// General path for other pool sizes
+	for (size_t r = 0; r < outRows; ++r) {
+		for (size_t c = 0; c < outCols; ++c) {
+			float  maxVal = inp[(r * poolSize) * inCols + (c * poolSize)];
+			size_t maxIdx = (r * poolSize) * inCols + (c * poolSize);
+			for (size_t pr = 0; pr < poolSize; ++pr) {
+				const float *row =
+					inp + (r * poolSize + pr) * inCols + c * poolSize;
+				for (size_t pc = 0; pc < poolSize; ++pc) {
+					if (row[pc] > maxVal) {
+						maxVal = row[pc];
+						maxIdx =
+							(r * poolSize + pr) * inCols + (c * poolSize + pc);
+					}
+				}
+			}
+			out[r * outCols + c] = maxVal;
+			amax[r * outCols + c] = maxIdx;
+		}
+	}
+	return (output);
+}
+
+// maxPoolingUnpool: inverse of maxPoolingArgmax for backprop.
+// Scatters each gradient value in *this (the pooled error map) back to the
+// single position recorded in `argmax` inside a (prePoolRows x prePoolCols)
+// zero matrix. Every non-max position receives zero gradient.
+DMatrix DMatrix::maxPoolingUnpool(const std::vector<size_t> &argmax,
+								  size_t					 prePoolRows,
+								  size_t prePoolCols) const {
+	const size_t outCols = this->cols;
+	DMatrix		 unpooled(prePoolRows, prePoolCols); // zero-initialized
+	const float *__restrict__ src = this->matrix.data();
+	float *__restrict__ dst = unpooled.matrix.data();
+	const size_t *__restrict__ amax = argmax.data();
+	const size_t n = this->rows * outCols;
+	for (size_t i = 0; i < n; ++i) dst[amax[i]] = src[i];
+	return (unpooled);
 }
 
 float DMatrix::totalSum() const {
