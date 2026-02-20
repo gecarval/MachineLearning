@@ -396,11 +396,13 @@ void ConvNeuralNetwork::backpropConvolution(
 			// Flip kernel 180 degrees once
 			DMatrix flippedKernel(this->kernels[f][d].getRowLength(),
 								  this->kernels[f][d].getColLength());
-			for (size_t m = 0; m < flippedKernel.getRowLength(); ++m)
-				for (size_t n = 0; n < flippedKernel.getColLength(); ++n)
+			for (size_t m = 0; m < flippedKernel.getRowLength(); ++m) {
+				for (size_t n = 0; n < flippedKernel.getColLength(); ++n) {
 					flippedKernel(m, n) = this->kernels[f][d](
 						this->kernels[f][d].getRowLength() - 1 - m,
 						this->kernels[f][d].getColLength() - 1 - n);
+				}
+			}
 			// Full convolution = half-padded convolution of dZ with flipped
 			// kernel
 			currentError = dZ.kernelMultHalfPadded(flippedKernel);
