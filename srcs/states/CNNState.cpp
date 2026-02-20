@@ -489,6 +489,8 @@ void convuluctionGallery(Machine &machine, std::vector<float> input) {
 	cnnState.canvas.clear();
 }
 
+static int epoch = 10;
+
 static void handleKeyboardInput(Machine &machine) {
 	if (!IsWindowFocused()) return;
 
@@ -519,7 +521,6 @@ static void handleKeyboardInput(Machine &machine) {
 	}
 
 	if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_T)) {
-		static const int epoch = 10;
 		trainModel(machine, epoch);
 		TraceLog(LOG_INFO, "Trained digit: %d", epoch);
 	}
@@ -614,6 +615,25 @@ int handleCNNState(Machine &machine) {
 	// Check for window resize
 	checkResize();
 
+	static Button increaseEpochsButton(
+		GetScreenWidth() - 220, GetScreenHeight() - 50, 100, 30, "Epochs +");
+	static Button decreaseEpochsButton(
+		GetScreenWidth() - 110, GetScreenHeight() - 50, 100, 30, "Epochs -");
+	static bool configuredButtons = false;
+	if (!configuredButtons) {
+		increaseEpochsButton.setOnClick([]() {
+			epoch += 1;
+			TraceLog(LOG_INFO, "Epochs set to: %d", epoch);
+		});
+		decreaseEpochsButton.setOnClick([]() {
+			epoch = std::max(1, epoch - 1);
+			TraceLog(LOG_INFO, "Epochs set to: %d", epoch);
+		});
+		configuredButtons = true;
+	}
+
+	increaseEpochsButton.update();
+	decreaseEpochsButton.update();
 	// Calculate responsive layout
 	const Layout layout = Layout::calculate();
 
@@ -655,17 +675,22 @@ int handleCNNState(Machine &machine) {
 
 	DrawText(TextFormat("Current Label: %d", cnnState.currentLabel), instrPos.x,
 			 instrPos.y, instrSize + 2, BLACK);
-	DrawText(
-		"Keys: 0-9 (Label) | C (Clear) | T (Train) | P (Predict) | R (Reset)",
-		instrPos.x, instrPos.y + lineSpacing, instrSize, DARKGRAY);
+	DrawText("Keys: 0-9 (Label) | C (Clear) | T (Train) | P (Predict) | R "
+			 "(Reset) | H (Conv Gallery)",
+			 instrPos.x, instrPos.y + lineSpacing, instrSize, DARKGRAY);
 	DrawText("Mouse: Left (Draw) | Right (Erase) | Ctrl+Shift+S (Save Grid on "
 			 "Database)",
 			 instrPos.x, instrPos.y + lineSpacing * 2, instrSize, DARKGRAY);
-	DrawText("Ctrl+S (Save AI) | Ctrl+L (Load AI) | Ctrl+T (Train on Database)",
-			 instrPos.x, instrPos.y + lineSpacing * 3, instrSize, DARKGRAY);
+	const std::string trainInfo = "Ctrl+S (Save AI) | Ctrl+L (Load AI) | "
+								  "Ctrl+T (Train on Database) epoch: " +
+								  std::to_string(epoch);
+	DrawText(trainInfo.c_str(), instrPos.x, instrPos.y + lineSpacing * 3,
+			 instrSize, DARKGRAY);
 
 	// Back button
 	backButton(machine).draw();
+	increaseEpochsButton.draw();
+	decreaseEpochsButton.draw();
 
 	DrawFPS(drawFpsPos.x, drawFpsPos.y);
 
