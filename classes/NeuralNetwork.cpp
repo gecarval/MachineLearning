@@ -337,7 +337,8 @@ void NeuralNetwork::clampWeightsAndBiases() {
 		const size_t fan_out =
 			(i == hiddenLayerLen) ? numberOfOutputNodes : numberOfHiddenNodes;
 		const float weight_clamp = NeuralNetwork::CLAMP;
-		const float bias_clamp = fan_in + fan_out;
+		const float bias_clamp =
+			std::sqrt(static_cast<float>(fan_in + fan_out));
 		// Clamp weights
 		const size_t weight_rows = weight[i].getRowLength();
 		const size_t weight_cols = weight[i].getColLength();
