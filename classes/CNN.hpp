@@ -2,186 +2,208 @@
 #define CNN_HPP
 
 #include "NeuralNetwork.hpp"
-#include <iterator>
-#include <system_error>
+#include <fstream>
+#include <stdexcept>
+
+// =============================================================================
+// ConvNeuralNetwork
+//
+// A standard multi-layer Convolutional Neural Network following the design of
+// LeCun et al. (1998) and the implementation conventions of modern frameworks
+// (PyTorch, TensorFlow):
+//
+//   • Forward operation per conv layer uses CROSS-CORRELATION (no kernel flip),
+//     exactly as PyTorch nn.Conv2d and TF Conv2D do.
+//
+//   • Kernel layout:  kernels[layer][filter][inChannel]
+//       layer     — conv layer index          (0 … numConvLayers-1)
+//       filter    — output channel index      (0 … numFilters-1)
+//       inChannel — input channel index       (0 … inChannels(layer)-1)
+//         inChannels(layer == 0) = 1          (single-channel image input)
+//         inChannels(layer  > 0) = numFilters (previous layer's output count)
+//
+//   • Bias layout: kernelBiases[layer][filter]
+//       One scalar bias per output filter per layer (standard).
+//
+//   • Weight initialisation: He (Kaiming) uniform — N(0, sqrt(2/fanIn))
+//       fanIn = kernelSize² × inChannels(layer)
+//
+//   • Activation: LeakyReLU after every conv layer (slope = 1/100 for x < 0).
+//
+//   • Pooling: single 2×2 max-pool applied ONCE after the last conv layer.
+//     Argmax positions are recorded during the training forward pass and used
+//     for gradient routing in backprop.
+//
+//   • Flattening: all filter maps (post-pool) are concatenated into a 1-D
+//     vector and fed into a fully-connected NeuralNetwork classifier.
+//
+// ---------------------------------------------------------------------------
+// Forward pass  (per layer l, per output filter f):
+//
+//   z[l][f]   = Σ_c  crossCorrelate( input[l][c],  K[l][f][c] )  +  b[l][f]
+//   a[l][f]   = LeakyReLU( z[l][f] )
+//
+// where crossCorrelate is DMatrix::kernelMult() — slides kernel over input
+// without flipping (standard industry convention).
+//
+// ---------------------------------------------------------------------------
+// Backprop  (per layer l, deepest → shallowest):
+//
+//   delta[f]           =  errorMap[f]  ⊙  DLeakyReLU( z[l][f] )
+//
+//   dL/dK[l][f][c]     =  crossCorrelate( input[l][c],  delta[f] )
+//                       =  input[l][c].kernelMult( delta[f] )          [no
+//                       flip]
+//
+//   dL/db[l][f]        =  sum( delta[f] )
+//
+//   dL/dinput[l][c]    =  Σ_f  fullConvolution( delta[f],  K[l][f][c] )
+//                       =  Σ_f  delta[f].convolveFullPadded( K[l][f][c] )
+//                         (convolveFullPadded flips the kernel — correct
+//                         gradient
+//                          for a cross-correlation forward pass, see Goodfellow
+//                          et al., Deep Learning, Ch. 9)
+// =============================================================================
 
 class ConvNeuralNetwork {
   private:
-	// Attributes for convolutional layers
+	// ───────────Hyper-parameters───────────
 	size_t inputWidth;
 	size_t inputHeight;
-	size_t numFilters;
-	size_t filtersDepth;
-	size_t kernelSize;
+	size_t numFilters;	  // output channels per conv layer
+	size_t numConvLayers; // number of stacked conv layers  (filtersDepth)
+	size_t kernelSize; // spatial size of every kernel (square: kSize × kSize)
 	float  convLearnRate;
 
-	// Storage for convolutional kernels (Weights)
-	std::vector<std::vector<DMatrix>> kernels;
-	std::vector<std::vector<float>>	  kernelBiases;
+	// ───────────Learnable parameters───────────
 
-	// Argmax positions from max pooling (for correct backprop per filter)
-	// poolArgmax[f] stores flat indices into the pre-pool feature map
-	mutable std::vector<std::vector<size_t>> poolArgmax;
+	// kernels[layer][filter][inChannel]  — 3-level hierarchy
+	std::vector<std::vector<std::vector<DMatrix>>> kernels;
+	// kernelBiases[layer][filter]        — one scalar per output filter per
+	// layer
+	std::vector<std::vector<float>> kernelBiases;
 
-	// Neural Network class handles the "Fully Connected" part
+	// Training state (written only by the training forward pass)
+	// poolArgmax[filter]: flat argmax indices from the final 2×2 max-pool step.
+	// Never touched by the const inference path — NOT declared mutable.
+	std::vector<std::vector<size_t>> poolArgmax;
+
+	// Fully-connected classifier
 	NeuralNetwork classifier;
 
-	// Overloaded convolution methods
-	DMatrix performConvolution(const DMatrix &inputImage) const;
-	DMatrix performConvolution(const DMatrix		&inputImage,
-							   std::vector<DMatrix> &featureMaps,
-							   std::vector<DMatrix> &preActivation) const;
+	// ───────────Internal helpers───────────
 
-	// Backpropagation through convolutional layers
-	void backpropConvolution(const DMatrix				&inputImage,
-							 const std::vector<DMatrix> &featureMaps,
-							 const std::vector<DMatrix> &preActivation,
-							 const DMatrix &errorFromFC, const size_t i);
+	// Returns the number of input channels for a given conv layer.
+	//   layer 0  →  1          (the original single-channel image)
+	//   layer l  →  numFilters (output channel count of the previous layer)
+	size_t inChannelsAt(size_t layer) const noexcept;
 
-	std::vector<float> feedForward(const DMatrix &inputImage) const;
-	void			   train(const DMatrix &inputImage, const DMatrix &target);
+	// Computes the spatial size (width = height, both shrink equally) of the
+	// feature maps that exit layer `layer`, before max-pooling.
+	// Each conv layer (valid / no-padding) reduces the side by (kernelSize -
+	// 1).
+	size_t spatialSizeAfterConv(size_t layer) const noexcept;
+
+	// Allocates and He-initialises kernels and biases for all conv layers.
+	void initKernels();
+
+	// Computes the total number of values in the flattened post-pool vector
+	// that is fed to the FC classifier.
+	size_t computeFlattenedSize() const;
+
+	// ───────────Forward pass helpers───────────
+
+	// Inference-only: conv layers → max-pool → flatten.
+	// Returns a column DMatrix of shape (flattenedSize × 1).
+	DMatrix forwardConv(const DMatrix &image) const;
+
+	// Training: same pipeline but records all intermediates needed for
+	// backprop.
+	//
+	//   layerInputs[l]    — input channel maps fed into conv layer l
+	//                       (vector of DMatrix, one per input channel)
+	//   preAct[l][f]      — pre-activation map z at (layer l, filter f)
+	//
+	// poolArgmax[f] is populated here (non-const via direct member write since
+	// this function is called exclusively from the non-const train() path).
+	//
+	// Returns a column DMatrix of shape (flattenedSize × 1).
+	DMatrix forwardConvTrain(const DMatrix					   &image,
+							 std::vector<std::vector<DMatrix>> &layerInputs,
+							 std::vector<std::vector<DMatrix>> &preAct);
+
+	// ───────────Backward pass helper───────────
+
+	// Backpropagates `fcGrad` (gradient from classifier.train(), shape
+	// flattenedSize×1) through the max-pool and all conv layers, updating
+	// kernels and biases in-place.
+	void backwardConv(const DMatrix						&fcGrad,
+					  std::vector<std::vector<DMatrix>> &layerInputs,
+					  std::vector<std::vector<DMatrix>> &preAct);
+
+	// ───────────Private DMatrix-level wrappers───────────
+
+	// Convert a flat float vector to a
+	// row-major image DMatrix.
+	DMatrix vectorToImage(const std::vector<float> &v) const;
 
   public:
+	// Default learning rate for the convolutional layers.
 	static constexpr float DefaultConvLearnRate = 0.001f;
-	~ConvNeuralNetwork();
+
+	// ───────────Lifecycle───────────
+
 	ConvNeuralNetwork();
-	ConvNeuralNetwork(const size_t imgW, const size_t imgH, const size_t kSize,
-					  const size_t HiddenNodes, const size_t outputNodes);
-	ConvNeuralNetwork(const size_t imgW, const size_t imgH,
-					  const size_t filters, const size_t filtersDepth,
-					  const size_t kSize, const size_t minKSize,
-					  const size_t HiddenNodes, const size_t outputNodes,
-					  const size_t hiddenLayerLen);
+	~ConvNeuralNetwork();
 	ConvNeuralNetwork(const ConvNeuralNetwork &other);
 	ConvNeuralNetwork &operator=(const ConvNeuralNetwork &other);
 
-	std::vector<float> feedForward(const std::vector<float> &inputImage) const;
-	void			   train(const std::vector<float> &inputImage,
+	// Simple constructor — 1 conv layer, 3 filters, kSize×kSize kernels.
+	ConvNeuralNetwork(size_t imgW, size_t imgH, size_t kSize,
+					  size_t hiddenNodes, size_t outputNodes);
+
+	// Full constructor — configurable depth, filter count, and FC topology.
+	ConvNeuralNetwork(size_t imgW, size_t imgH, size_t filters,
+					  size_t numConvLayers, size_t kSize, size_t hiddenNodes,
+					  size_t outputNodes, size_t hiddenLayerLen);
+
+	// ───────────Inference & training───────────
+
+	std::vector<float> feedForward(const std::vector<float> &image) const;
+	void			   train(const std::vector<float> &image,
 							 const std::vector<float> &target);
 
-	void				 setClassifier(const NeuralNetwork &classifier);
+	// ───────────Inspection───────────
+
+	// Returns the feature map produced by applying conv layers 0…layer for the
+	// given filter index. Useful for visualisation / debugging.
+	DMatrix getConvOnAFilterFunnel(const DMatrix &image, size_t filter,
+								   size_t layer) const;
+
+	// ───────────Accessors───────────
+
+	void				 setClassifier(const NeuralNetwork &c);
 	NeuralNetwork		&getClassifier();
 	const NeuralNetwork &getClassifier() const;
 
-	DMatrix getConvOnAFilterFunnel(const DMatrix &inputImage,
-								   const size_t	  filter,
-								   const size_t	  depth) const;
-
 	void  setConvLearnRate(float lr);
-	float getConvLearnRate(void) const;
+	float getConvLearnRate() const;
 
 	size_t getInputWidth() const;
 	size_t getInputHeight() const;
 	size_t getNumFilters() const;
-	size_t getFiltersDepth() const;
+	size_t getNumConvLayers() const;
 	size_t getKernelSize() const;
 
-	// Access to convolutional layer parameters (for inspection/debugging)
-	const std::vector<std::vector<DMatrix>> &getKernels() const;
-	const std::vector<std::vector<float>>	&getKernelBiases() const;
+	const std::vector<std::vector<std::vector<DMatrix>>> &getKernels() const;
+	const std::vector<std::vector<float>> &getKernelBiases() const;
 
-	static nlohmann::json serialize(const ConvNeuralNetwork &cnn,
-									const std::string &filename) noexcept {
-		nlohmann::json jsonData;
-		jsonData["inputWidth"] = cnn.getInputWidth();
-		jsonData["inputHeight"] = cnn.getInputHeight();
-		jsonData["numFilters"] = cnn.getNumFilters();
-		jsonData["filtersDepth"] = cnn.getFiltersDepth();
-		jsonData["kernelSize"] = cnn.getKernelSize();
-		jsonData["convLearnRate"] = cnn.getConvLearnRate();
-		for (size_t f = 0; f < cnn.getNumFilters(); f++) {
-			for (size_t d = 0; d < cnn.getFiltersDepth(); d++) {
-				const DMatrix				   &kernel = cnn.getKernels()[f][d];
-				std::vector<std::vector<float>> kernelData(
-					kernel.getRowLength(),
-					std::vector<float>(kernel.getColLength()));
-				for (size_t r = 0; r < kernel.getRowLength(); r++) {
-					for (size_t c = 0; c < kernel.getColLength(); c++) {
-						kernelData[r][c] = kernel(r, c);
-					}
-				}
-				jsonData["kernels"][f][d] = kernelData;
-				jsonData["kernelBiases"][f][d] = cnn.getKernelBiases()[f][d];
-			}
-		}
-		jsonData["classifier"] =
-			NeuralNetwork::serialize(cnn.getClassifier(), "");
-		std::ofstream file(filename);
-		if (file.is_open()) {
-			file << jsonData.dump(4);
-			file.close();
-		} else {
-			std::cerr << "Error: Could not open file for writing: " << filename
-					  << std::endl;
-		}
-		return (jsonData);
-	}
+	// ───────────Serialisation───────────
 
-	static ConvNeuralNetwork deserialize(const std::string &filename) noexcept {
-		std::ifstream file(filename);
-		if (!file.is_open()) {
-			std::cerr << "Error: Could not open file for reading: " << filename
-					  << std::endl;
-			return ConvNeuralNetwork();
-		}
-		nlohmann::json jsonData;
-		file >> jsonData;
-		file.close();
-
-		size_t inputWidth = jsonData["inputWidth"];
-		size_t inputHeight = jsonData["inputHeight"];
-		size_t numFilters = jsonData["numFilters"];
-		size_t filtersDepth = jsonData["filtersDepth"];
-		size_t kernelSize = jsonData["kernelSize"];
-		float  convLearnRate = jsonData["convLearnRate"];
-
-		ConvNeuralNetwork cnn(inputWidth, inputHeight, numFilters, filtersDepth,
-							  kernelSize, kernelSize, 0, 0, 0);
-		cnn.setConvLearnRate(convLearnRate);
-		for (size_t f = 0; f < numFilters; f++) {
-			for (size_t d = 0; d < filtersDepth; d++) {
-				const auto &kernelData = jsonData["kernels"][f][d];
-				DMatrix		kernel(kernelSize, kernelSize);
-				for (size_t r = 0; r < kernelSize; r++) {
-					for (size_t c = 0; c < kernelSize; c++) {
-						kernel(r, c) = kernelData[r][c];
-					}
-				}
-				cnn.kernels[f][d] = kernel;
-				cnn.kernelBiases[f][d] =
-					jsonData["kernelBiases"][f][d].get<float>();
-			}
-		}
-		cnn.setClassifier(
-			ConvNeuralNetwork::classifierFromJson(jsonData["classifier"]));
-		return (cnn);
-	}
-
-	static NeuralNetwork classifierFromJson(const nlohmann::json &j) {
-		NeuralNetwork nn(j.at("numberOfInputsNodes").get<size_t>(),
-						 j.at("numberOfHiddenNodes").get<size_t>(),
-						 j.at("numberOfOutputNodes").get<size_t>(),
-						 j.at("hiddenLayerLen").get<size_t>());
-		nn.setLearnRate(j.at("learnRate").get<float>());
-		// Load Weights
-		for (size_t i = 0; i <= nn.getHiddenLayerLength(); ++i) {
-			for (size_t r = 0; r < nn.getWeightAt(i).getRowLength(); ++r) {
-				for (size_t c = 0; c < nn.getWeightAt(i).getColLength(); ++c) {
-					nn.getWeightAt(i)(r, c) =
-						j["weights"][i][r][c].get<float>();
-				}
-			}
-		}
-		// Load Biases
-		for (size_t i = 0; i <= nn.getHiddenLayerLength(); ++i) {
-			for (size_t r = 0; r < nn.getBiasAt(i).getRowLength(); ++r) {
-				for (size_t c = 0; c < nn.getBiasAt(i).getColLength(); ++c) {
-					nn.getBiasAt(i)(r, c) = j["bias"][i][r][c].get<float>();
-				}
-			}
-		}
-		return (nn);
-	}
+	static nlohmann::json	 serialize(const ConvNeuralNetwork &cnn,
+									   const std::string	   &filename) noexcept;
+	static ConvNeuralNetwork deserialize(const std::string &filename) noexcept;
+	static NeuralNetwork	 classifierFromJson(const nlohmann::json &j);
 };
 
-#endif
+#endif // CNN_HPP

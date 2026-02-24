@@ -3,7 +3,11 @@
 // Canvas configuration
 namespace CanvasConfig {
 constexpr int GRID_SIZE = 28;
-constexpr int BRUSH_SIZE = 1;
+// Brush radius in grid cells with Gaussian falloff.
+// Matches closely with MNIST Database
+constexpr int BRUSH_RADIUS = 1;
+// Gaussian sigma for brush softness — mimics ink diffusion in MNIST samples.
+constexpr float BRUSH_SIGMA = 0.60f;
 
 // Dynamic sizing based on screen
 inline float getCellSize() {
@@ -70,16 +74,22 @@ struct Canvas {
 		UnloadImage(canvasImage);
 	}
 
-	void putConvoluctionResultOnCanvas(Machine			 &machine,
-									   std::vector<float> input,
-									   const size_t		  filter,
-									   const size_t		  depth) {
+	void putConvolutionResultOnCanvas(Machine			&machine,
+									  std::vector<float> input,
+									  const size_t filter, const size_t layer) {
+		// Build a column DMatrix from the flat input vector as
+		// getConvOnAFilterFunnel expects.
+		DMatrix inputMatrix(input.size(), 1);
+		for (size_t i = 0; i < input.size(); ++i) {
+			inputMatrix(i, 0) = input[i];
+		}
 		DMatrix featureMap =
-			machine.CNN.getConvOnAFilterFunnel(input, filter, depth);
+			machine.CNN.getConvOnAFilterFunnel(inputMatrix, filter, layer);
 		featureMap = featureMap.transpose();
 		for (size_t r = 0; r < featureMap.getRowLength(); r++) {
 			for (size_t c = 0; c < featureMap.getColLength(); c++) {
-				this->setPixel(r, c, featureMap(r, c));
+				this->setPixel(static_cast<int>(r), static_cast<int>(c),
+							   featureMap(r, c));
 			}
 		}
 	}
@@ -90,6 +100,89 @@ struct Canvas {
 		}
 	}
 
+	// Gaussian brush: accumulates ink with a smooth falloff so stroke edges
+	// produced by anti-aliased pen tablets
+	void paintPixelGaussian(int cx, int cy, float value) {
+		const int	R = CanvasConfig::BRUSH_RADIUS;
+		const float sigma = CanvasConfig::BRUSH_SIGMA;
+		const float inv2s2 = 1.0f / (2.0f * sigma * sigma);
+		for (int dy = -R; dy <= R; ++dy) {
+			for (int dx = -R; dx <= R; ++dx) {
+				const float dist2 = static_cast<float>(dx * dx + dy * dy);
+				const float weight = std::exp(-dist2 * inv2s2);
+				const int	px = cx + dx;
+				const int	py = cy + dy;
+				if (px >= 0 && px < CanvasConfig::GRID_SIZE && py >= 0 &&
+					py < CanvasConfig::GRID_SIZE) {
+					// Additive blend, clamped to [0,1] — lets strokes overlap
+					// and build up, the same way real ink does.
+					float &cell = this->grid[py][px];
+					cell = std::min(1.0f, cell + value * weight);
+				}
+			}
+		}
+	}
+
+	// Re-centres the drawn digit inside the 28×28 grid using centre-of-mass,
+	// matching the MNIST normalisation pipeline (Lecun et al., 1998).
+	// Leaves a 2-pixel margin on all sides, consistent with MNIST padding.
+	void centreDigit() {
+		constexpr int G = CanvasConfig::GRID_SIZE;
+
+		// 1. Compute bounding box of non-zero pixels.
+		int minR = G, maxR = -1, minC = G, maxC = -1;
+		for (int r = 0; r < G; ++r) {
+			for (int c = 0; c < G; ++c) {
+				if (this->grid[r][c] > 0.01f) {
+					if (r < minR) minR = r;
+					if (r > maxR) maxR = r;
+					if (c < minC) minC = c;
+					if (c > maxC) maxC = c;
+				}
+			}
+		}
+		// canvas is empty
+		if (maxR < 0) {
+			return;
+		}
+
+		// 2. Compute centre of mass (weighted by pixel value).
+		float sumW = 0.0f, sumR = 0.0f, sumC = 0.0f;
+		for (int r = minR; r <= maxR; ++r) {
+			for (int c = minC; c <= maxC; ++c) {
+				const float w = this->grid[r][c];
+				sumW += w;
+				sumR += w * static_cast<float>(r);
+				sumC += w * static_cast<float>(c);
+			}
+		}
+		const float comR = (sumW > 0.0f) ? sumR / sumW : (minR + maxR) / 2.0f;
+		const float comC = (sumW > 0.0f) ? sumC / sumW : (minC + maxC) / 2.0f;
+
+		// 3. Compute integer shift to move centre of mass to the canvas centre.
+		const float targetR = (G - 1) / 2.0f;
+		const float targetC = (G - 1) / 2.0f;
+		const int	shiftR = static_cast<int>(std::round(targetR - comR));
+		const int	shiftC = static_cast<int>(std::round(targetC - comC));
+
+		if (shiftR == 0 && shiftC == 0) {
+			return;
+		}
+
+		// 4. Copy with the shift applied (unvisited cells stay 0).
+		std::vector<std::vector<float>> shifted(G, std::vector<float>(G, 0.0f));
+		for (int r = 0; r < G; ++r) {
+			for (int c = 0; c < G; ++c) {
+				const int nr = r + shiftR;
+				const int nc = c + shiftC;
+				if (nr >= 0 && nr < G && nc >= 0 && nc < G)
+					shifted[nr][nc] = this->grid[r][c];
+			}
+		}
+		this->grid = std::move(shifted);
+	}
+
+	// Hard-set a single pixel — used for erasing and image import.
 	void setPixel(int x, int y, float value) {
 		if (x >= 0 && x < CanvasConfig::GRID_SIZE && y >= 0 &&
 			y < CanvasConfig::GRID_SIZE) {
@@ -120,10 +213,7 @@ struct CNNState {
 	Canvas			   canvas;
 	int				   currentLabel = 0;
 	bool			   isPredicting = false;
-	bool			   needsRepositioning = true;
 	std::vector<float> predictions;
-	int				   lastScreenWidth = 0;
-	int				   lastScreenHeight = 0;
 
 	CNNState() : predictions(10, 0.0f) {
 	}
@@ -192,14 +282,14 @@ struct Layout {
 		layout.instructionPos.x = 20.0f;
 		layout.instructionPos.y = screenH - instructionHeight + 10.0f;
 
-		return layout;
+		return (layout);
 	}
 };
 
 // Helper functions
 static void drawCanvas(const Canvas &canvas, float cellSize) {
 	const Vector2 &pos = canvas.position;
-	const float	   canvasSize = CanvasConfig::getCanvasSize();
+	const float	   canvasSize = cellSize * CanvasConfig::GRID_SIZE;
 
 	// Draw grid
 	for (int y = 0; y < CanvasConfig::GRID_SIZE; ++y) {
@@ -281,10 +371,12 @@ static void drawPredictions(const std::vector<float> &predictions,
 }
 
 static void handleCanvasInput(Canvas &canvas, float cellSize) {
-	if (!IsWindowFocused()) return;
+	if (!IsWindowFocused()) {
+		return;
+	}
 
 	const Vector2	mousePos = GetMousePosition();
-	const float		canvasSize = CanvasConfig::getCanvasSize();
+	const float		canvasSize = cellSize * CanvasConfig::GRID_SIZE;
 	const Rectangle canvasBounds = {canvas.position.x, canvas.position.y,
 									canvasSize, canvasSize};
 
@@ -294,23 +386,17 @@ static void handleCanvasInput(Canvas &canvas, float cellSize) {
 		const int gridY =
 			static_cast<int>((mousePos.y - canvas.position.y) / cellSize);
 
-		// Draw with left mouse button
+		// Draw with Gaussian brush — produces soft, anti-aliased strokes
+		// that match the ink-diffusion characteristics of MNIST samples.
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-			for (int dy = -CanvasConfig::BRUSH_SIZE;
-				 dy <= CanvasConfig::BRUSH_SIZE; ++dy) {
-				for (int dx = -CanvasConfig::BRUSH_SIZE;
-					 dx <= CanvasConfig::BRUSH_SIZE; ++dx) {
-					canvas.setPixel(gridX + dx, gridY + dy, 1.0f);
-				}
-			}
+			canvas.paintPixelGaussian(gridX, gridY, 1.0f);
 		}
 
-		// Erase with right mouse button
+		// Erase with a hard square brush (right mouse button).
 		if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
-			for (int dy = -CanvasConfig::BRUSH_SIZE;
-				 dy <= CanvasConfig::BRUSH_SIZE; ++dy) {
-				for (int dx = -CanvasConfig::BRUSH_SIZE;
-					 dx <= CanvasConfig::BRUSH_SIZE; ++dx) {
+			const int R = CanvasConfig::BRUSH_RADIUS;
+			for (int dy = -R; dy <= R; ++dy) {
+				for (int dx = -R; dx <= R; ++dx) {
 					canvas.setPixel(gridX + dx, gridY + dy, 0.0f);
 				}
 			}
@@ -440,12 +526,14 @@ void saveGrid(void) {
 	} catch (const std::exception &error) {
 		std::cerr << "ERROR: " << error.what() << std::endl;
 	}
-	for (int number = 0; number < 1000; number++) {
-		const std::string image = "/image_" + std::to_string(number);
-		const std::string filename = directory + subdirectory + image;
-		const std::string extension = ".png";
-		if (!std::filesystem::exists(filename + extension)) {
-			cnnState.canvas.exportImageCanvas(filename + extension);
+	for (int number = 0; number < 100000; number++) {
+		// Pad to 5 digits to match loadTrainingData expectations.
+		const std::string num = std::to_string(number);
+		const std::string pad = std::string(5 - num.length(), '0');
+		const std::string filename =
+			directory + subdirectory + "/image_" + pad + num + ".png";
+		if (!std::filesystem::exists(filename)) {
+			cnnState.canvas.exportImageCanvas(filename);
 			break;
 		}
 	}
@@ -453,18 +541,20 @@ void saveGrid(void) {
 
 void convuluctionGallery(Machine &machine, std::vector<float> input) {
 	const int numFilters = machine.CNN.getNumFilters();
-	const int depth = machine.CNN.getFiltersDepth();
+	const int depth = machine.CNN.getNumConvLayers();
 
 	static int currentFilter = 0;
 	static int currentDepth = 0;
 
 	while (true) {
 		cnnState.canvas.clear();
-		cnnState.canvas.putConvoluctionResultOnCanvas(
+		cnnState.canvas.putConvolutionResultOnCanvas(
 			machine, input, currentFilter, currentDepth);
 		BeginDrawing();
 		ClearBackground(RAYWHITE);
-		drawCanvas(cnnState.canvas, CanvasConfig::getCellSize());
+		const Layout galleryLayout = Layout::calculate();
+		cnnState.canvas.position = galleryLayout.canvasPos;
+		drawCanvas(cnnState.canvas, galleryLayout.cellSize);
 		DrawText(
 			TextFormat("Filter: %d | Depth: %d", currentFilter, currentDepth),
 			10, 10, 20, BLACK);
@@ -492,7 +582,9 @@ void convuluctionGallery(Machine &machine, std::vector<float> input) {
 static int epoch = 10;
 
 static void handleKeyboardInput(Machine &machine) {
-	if (!IsWindowFocused()) return;
+	if (!IsWindowFocused()) {
+		return;
+	}
 
 	// Clear canvas
 	if (IsKeyPressed(KEY_C)) {
@@ -501,8 +593,9 @@ static void handleKeyboardInput(Machine &machine) {
 		TraceLog(LOG_INFO, "Canvas cleared");
 	}
 
-	// Train current digit
+	// Train current digit — centre first so the model sees MNIST-aligned input.
 	if (IsKeyPressed(KEY_T)) {
+		cnnState.canvas.centreDigit();
 		std::vector<float> input = cnnState.canvas.toVector();
 		std::vector<float> target(10, 0.0f);
 		target[cnnState.currentLabel] = 1.0f;
@@ -532,8 +625,10 @@ static void handleKeyboardInput(Machine &machine) {
 		TraceLog(LOG_INFO, "Applied convolution on canvas");
 	}
 
-	// Predict
-	if (IsKeyPressed(KEY_P) || true) {
+	// Predict — centre digit first so inference matches MNIST layout,
+	// then run the network.
+	if (IsKeyPressed(KEY_P)) {
+		cnnState.canvas.centreDigit();
 		std::vector<float> input = cnnState.canvas.toVector();
 		cnnState.predictions = machine.CNN.feedForward(input);
 		cnnState.isPredicting = true;
@@ -556,8 +651,8 @@ static void handleKeyboardInput(Machine &machine) {
 		const float learnRate = machine.CNN.getClassifier().getLearnRate();
 		machine.CNN = ConvNeuralNetwork(
 			machine.CNN.getInputWidth(), machine.CNN.getInputHeight(),
-			machine.CNN.getNumFilters(), machine.CNN.getFiltersDepth(),
-			machine.CNN.getKernelSize(), machine.CNN.getKernelSize(),
+			machine.CNN.getNumFilters(), machine.CNN.getNumConvLayers(),
+			machine.CNN.getKernelSize(),
 			machine.CNN.getClassifier().getNumberOfHiddenNodes(),
 			machine.CNN.getClassifier().getNumberOfOutputsNodes(),
 			machine.CNN.getClassifier().getHiddenLayerLength());
@@ -596,24 +691,11 @@ static void handleKeyboardInput(Machine &machine) {
 	}
 }
 
-static void checkResize() {
-	const int currentW = GetScreenWidth();
-	const int currentH = GetScreenHeight();
-
-	if (currentW != cnnState.lastScreenWidth ||
-		currentH != cnnState.lastScreenHeight) {
-		cnnState.needsRepositioning = true;
-		cnnState.lastScreenWidth = currentW;
-		cnnState.lastScreenHeight = currentH;
-	}
-}
-
 int handleCNNState(Machine &machine) {
 	SetExitKey(0);
-	if (IsKeyPressed(KEY_ESCAPE)) return STATE::MENU::MAIN;
-
-	// Check for window resize
-	checkResize();
+	if (IsKeyPressed(KEY_ESCAPE)) {
+		return STATE::MENU::MAIN;
+	}
 
 	static Button increaseEpochsButton(
 		GetScreenWidth() - 220, GetScreenHeight() - 50, 100, 30, "Epochs +");
@@ -634,16 +716,21 @@ int handleCNNState(Machine &machine) {
 
 	increaseEpochsButton.update();
 	decreaseEpochsButton.update();
-	// Calculate responsive layout
+
+	// Compute layout ONCE per frame — this is the single source of truth for
+	// cell size and canvas position. Nothing else may call
+	// GetScreenWidth/Height or getCellSize() independently this frame.
 	const Layout layout = Layout::calculate();
 
-	// Update canvas position if needed
-	if (cnnState.needsRepositioning) {
-		cnnState.canvas.position = layout.canvasPos;
-		cnnState.needsRepositioning = false;
-	}
+	// Always keep canvas position in sync with the current layout.
+	// This handles window resizes automatically without any flag machinery.
+	// The position is updated BEFORE input handling so the mouse coordinate
+	// conversion in handleCanvasInput uses the exact same position that will
+	// be used for rendering — the canvas never moves under the cursor.
+	cnnState.canvas.position = layout.canvasPos;
 
-	// Handle input
+	// Handle input — pass layout.cellSize so input and render use identical
+	// values.
 	handleCanvasInput(cnnState.canvas, layout.cellSize);
 	handleKeyboardInput(machine);
 
@@ -662,7 +749,6 @@ int handleCNNState(Machine &machine) {
 	drawCanvas(cnnState.canvas, layout.cellSize);
 
 	// Draw predictions
-	cnnState.isPredicting = true;
 	if (cnnState.isPredicting) {
 		drawPredictions(cnnState.predictions, layout.predictionPos,
 						!layout.showPredictionsSide);
@@ -675,10 +761,10 @@ int handleCNNState(Machine &machine) {
 
 	DrawText(TextFormat("Current Label: %d", cnnState.currentLabel), instrPos.x,
 			 instrPos.y, instrSize + 2, BLACK);
-	DrawText("Keys: 0-9 (Label) | C (Clear) | T (Train) | P (Predict) | R "
-			 "(Reset) | H (Conv Gallery)",
+	DrawText("Keys: 0-9 (Label) | C (Clear) | T (Train+Centre) | P "
+			 "(Predict+Centre) | R (Reset) | H (Conv Gallery)",
 			 instrPos.x, instrPos.y + lineSpacing, instrSize, DARKGRAY);
-	DrawText("Mouse: Left (Draw) | Right (Erase) | Ctrl+Shift+S (Save Grid on "
+	DrawText("Mouse: Left (Draw soft) | Right (Erase) | Ctrl+Shift+S (Save to "
 			 "Database)",
 			 instrPos.x, instrPos.y + lineSpacing * 2, instrSize, DARKGRAY);
 	const std::string trainInfo = "Ctrl+S (Save AI) | Ctrl+L (Load AI) | "
