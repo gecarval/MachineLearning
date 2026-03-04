@@ -4,3 +4,5 @@ build
 imgui.ini
 machinelearn
 NeuralNetwork.json
+ConvNeuralNetwork.json
+traindata
