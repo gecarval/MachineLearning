@@ -69,6 +69,7 @@ void initEngine(Machine &machine) {
 	machine.NN = NeuralNetwork(NN_INPUT_NODES, NN_HIDDEN_NODES, NN_OUTPUT_NODES,
 							   NN_HIDDEN_LAYERS);
 	machine.NN.setLearnRate(NN_LEARNING_RATE);
+	machine.NN.setHiddenLayerActivation(LeakyReLU, DLeakyReLU);
 	machine.NN.setOutputLayerActivation(Sigmoid, DSigmoid);
 	// CNN Settings (for digit recognition - 10 classes)
 	constexpr unsigned int CANVAS_WIDTH = 28;

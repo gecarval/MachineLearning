@@ -1,455 +1,508 @@
 #include "NeuralNetwork.hpp"
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Gradient utilities
+// ═══════════════════════════════════════════════════════════════════════════
+
 float clampGradient(const float x) {
-	static const float max = 100.0f;
-	if (std::isnan(x) || std::isinf(x)) return (0.0f);
-	return (std::abs(x) < max ? x : x > 0.0f ? max : -max);
+	static constexpr float MAX = 100.0f;
+	if (std::isnan(x) || std::isinf(x)) return 0.0f;
+	if (x > MAX) return MAX;
+	if (x < -MAX) return -MAX;
+	return x;
 }
 
 float errorTolerance(const float x) {
-	static const float tol = 1.0f / NeuralNetwork::TOLERANCE;
-	if (std::isnan(x) || std::isinf(x)) return (1.0f);
-	if (std::abs(x) < tol) return (0.0f);
-	return (x);
+	static const float TOL =
+		1.0f / static_cast<float>(NeuralNetwork::TOLERANCE);
+	if (std::isnan(x) || std::isinf(x)) return 1.0f;
+	if (std::abs(x) < TOL) return 0.0f;
+	return x;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Activation functions
+// All activation derivatives receive the PRE-activation value z.
+// ═══════════════════════════════════════════════════════════════════════════
+
 float Tanh(const float x) {
-	const float max = 5.0f;
-	const float y = std::abs(x) < max ? x : x > 0.0f ? max : -max;
-	const float z = (2.0f / (1.0f + std::exp(-2 * y))) - 1.0f;
-	if (std::isnan(z) || std::isinf(z)) return (0.0f);
-	return (z);
+	constexpr float MAX = 5.0f;
+	const float		y = (x > MAX) ? MAX : (x < -MAX) ? -MAX : x;
+	const float		z = (2.0f / (1.0f + std::exp(-2.0f * y))) - 1.0f;
+	return (std::isnan(z) || std::isinf(z)) ? 0.0f : z;
 }
 
 float Sigmoid(const float x) {
-	const float max = 10.0f;
-	const float y = std::abs(x) < max ? x : x > 0.0f ? max : -max;
-	const float z = 1.0f / (1.0f + std::exp(-y));
-	if (std::isnan(z) || std::isinf(z)) return (0.0f);
-	return (z);
+	constexpr float MAX = 10.0f;
+	const float		y = (x > MAX) ? MAX : (x < -MAX) ? -MAX : x;
+	const float		z = 1.0f / (1.0f + std::exp(-y));
+	return (std::isnan(z) || std::isinf(z)) ? 0.0f : z;
 }
 
 float SiLU(const float x) {
-	const float max = 50.0f;
-	const float y = std::abs(x) < max ? x : x > 0.0f ? max : -max;
-	const float z = y / (1.0f + std::exp(-y));
-	if (std::isnan(z) || std::isinf(z)) return 0.0f;
-	return (z);
+	constexpr float MAX = 50.0f;
+	const float		y = (x > MAX) ? MAX : (x < -MAX) ? -MAX : x;
+	const float		z = y / (1.0f + std::exp(-y));
+	return (std::isnan(z) || std::isinf(z)) ? 0.0f : z;
 }
 
 float ReLU(const float x) {
-	if (std::isnan(x) || std::isinf(x)) return (0.0f);
-	return (x < 0.0f ? 0.0f : x);
+	if (std::isnan(x) || std::isinf(x)) return 0.0f;
+	return x < 0.0f ? 0.0f : x;
 }
 
 float LeakyReLU(const float x) {
-	static const float a = 1.0f / NeuralNetwork::ALPHA;
-	if (std::isnan(x) || std::isinf(x)) return (0.0f);
-	return (x < 0.0f ? x * a : x);
+	static const float A = 1.0f / static_cast<float>(NeuralNetwork::ALPHA);
+	if (std::isnan(x) || std::isinf(x)) return 0.0f;
+	return x < 0.0f ? x * A : x;
 }
 
 float Step(const float x) {
 	if (std::isnan(x) || std::isinf(x)) return 0.0f;
-	return (x >= 0.0f ? 1.0f : 0.0f);
+	return x >= 0.0f ? 1.0f : 0.0f;
 }
 
 float Linear(const float x) {
 	if (std::isnan(x) || std::isinf(x)) return 0.0f;
-	return (x);
+	return x;
 }
+
+// ─── Derivatives (all receive the pre-activation z) ───────────────────────
 
 float DTanh(const float x) {
-	if (std::isnan(x) || std::isinf(x)) return (0.0f);
-	const float y = Tanh(x);
-	return (1.0f - (y * y));
+	if (std::isnan(x) || std::isinf(x)) return 0.0f;
+	const float t = Tanh(x);
+	return 1.0f - t * t;
 }
 
+// BUG FIX: previously defined as x*(1-x), which is only correct when x is
+// already the sigmoid output. All other derivatives receive z (pre-activation),
+// so we must be consistent: compute σ(z)·(1−σ(z)) from z here.
+// This removes the need for the special-case branch in train().
 float DSigmoid(const float x) {
-	if (std::isnan(x) || std::isinf(x)) return (0.0f);
-	return (x * (1.0f - x));
+	if (std::isnan(x) || std::isinf(x)) return 0.0f;
+	const float s = Sigmoid(x);
+	return s * (1.0f - s);
 }
 
 float DSiLU(const float x) {
-	const float max = 50.0f;
-	const float y = std::abs(x) < max ? x : x > 0.0f ? max : -max;
-	const float sigma = 1.0f / (1.0f + std::exp(-y));
-	const float z = y * sigma * (1.0f - sigma) + sigma;
-	if (std::isnan(z) || std::isinf(z)) return 0.0f;
-	return (z);
+	constexpr float MAX = 50.0f;
+	const float		y = (x > MAX) ? MAX : (x < -MAX) ? -MAX : x;
+	const float		sigma = 1.0f / (1.0f + std::exp(-y));
+	const float		z = y * sigma * (1.0f - sigma) + sigma;
+	return (std::isnan(z) || std::isinf(z)) ? 0.0f : z;
 }
 
 float DReLU(const float x) {
-	if (std::isnan(x) || std::isinf(x)) return (0.0f);
-	return (x > 0.0f ? 1.0f : 0.0f);
+	if (std::isnan(x) || std::isinf(x)) return 0.0f;
+	return x > 0.0f ? 1.0f : 0.0f;
 }
 
 float DLeakyReLU(const float x) {
-	static const float a = 1.0f / NeuralNetwork::ALPHA;
-	if (std::isnan(x) || std::isinf(x)) return (0.0f);
-	return (x > 0.0f ? 1.0f : a);
+	static const float A = 1.0f / static_cast<float>(NeuralNetwork::ALPHA);
+	if (std::isnan(x) || std::isinf(x)) return 0.0f;
+	return x > 0.0f ? 1.0f : A;
 }
 
 float DStep(const float x) {
 	if (std::isnan(x) || std::isinf(x)) return 0.0f;
-	return (x >= 0.0f) ? 1.0f : 0.0f;
+	return x >= 0.0f ? 1.0f : 0.0f;
 }
 
-float DLinear(const float x) {
-	(void)x;
-	return (1.0f);
+float DLinear(const float /*x*/) {
+	return 1.0f;
 }
 
-// Softmax function for multi-class classification
+// ─── Softmax ──────────────────────────────────────────────────────────────
+
 DMatrix Softmax(const DMatrix &x) {
-	DMatrix result(x.getRowLength(), x.getColLength());
-	// Find max value for numerical stability
+	const size_t rows = x.getRowLength();
+	const size_t cols = x.getColLength();
+	DMatrix		 result(rows, cols);
+
+	// Numerically stable: subtract max before exp
 	float max_val = x.getValue(0, 0);
-	for (size_t i = 0; i < x.getRowLength(); ++i) {
-		for (size_t j = 0; j < x.getColLength(); ++j) {
-			float val = x.getValue(i, j);
-			if (val > max_val) max_val = val;
-		}
-	}
-	// Compute exp(x - max) and sum
+	for (size_t i = 0; i < rows; ++i)
+		for (size_t j = 0; j < cols; ++j)
+			if (x.getValue(i, j) > max_val) max_val = x.getValue(i, j);
+
 	float sum = 0.0f;
-	for (size_t i = 0; i < x.getRowLength(); ++i) {
-		for (size_t j = 0; j < x.getColLength(); ++j) {
-			float val = std::exp(x.getValue(i, j) - max_val);
-			result.setValue(i, j, val);
-			sum += val;
+	for (size_t i = 0; i < rows; ++i) {
+		for (size_t j = 0; j < cols; ++j) {
+			const float v = std::exp(x.getValue(i, j) - max_val);
+			result.setValue(i, j, v);
+			sum += v;
 		}
 	}
-	// Normalize
+
 	if (sum > 0.0f) {
-		for (size_t i = 0; i < result.getRowLength(); ++i) {
-			for (size_t j = 0; j < result.getColLength(); ++j) {
+		for (size_t i = 0; i < rows; ++i)
+			for (size_t j = 0; j < cols; ++j)
 				result.setValue(i, j, result.getValue(i, j) / sum);
-			}
-		}
 	}
-	return (result);
+	return result;
 }
 
-// Softmax derivative (simplified for cross-entropy loss)
-// When using cross-entropy loss with softmax, the gradient simplifies to:
-// gradient = output - target
-DMatrix DSoftmax(const DMatrix &output, const DMatrix &error) {
-	// For cross-entropy loss, this is already handled correctly
-	// Just return the error as-is
-	(void)output;
-	return (error);
+// Gradient for softmax + cross-entropy: simplifies to (output − target),
+// which the caller already supplies as `error`. `output` is unused here
+// but kept in the signature for documentation clarity.
+DMatrix DSoftmax(const DMatrix & /*output*/, const DMatrix &error) {
+	return error;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NeuralNetwork — private helper
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Allocates and He-initialises all weight/bias matrices.
+// Requires that all scalar fields are already set.
+void NeuralNetwork::initLayers() {
+	// Layer 0: input → first hidden
+	weight[0] = DMatrix(numberOfHiddenNodes, numberOfInputsNodes);
+	weight[0].randomize(numberOfInputsNodes);
+	bias[0] = DMatrix(numberOfHiddenNodes, 1);
+	bias[0].randomize(numberOfInputsNodes);
+
+	// Layers 1 … hiddenLayerLen-1: hidden → hidden
+	for (size_t i = 1; i < hiddenLayerLen; ++i) {
+		weight[i] = DMatrix(numberOfHiddenNodes, numberOfHiddenNodes);
+		weight[i].randomize(numberOfHiddenNodes);
+		bias[i] = DMatrix(numberOfHiddenNodes, 1);
+		bias[i].randomize(numberOfHiddenNodes);
+	}
+
+	// Layer hiddenLayerLen: last hidden → output
+	weight[hiddenLayerLen] = DMatrix(numberOfOutputNodes, numberOfHiddenNodes);
+	weight[hiddenLayerLen].randomize(numberOfHiddenNodes);
+	bias[hiddenLayerLen] = DMatrix(numberOfOutputNodes, 1);
+	bias[hiddenLayerLen].randomize(numberOfHiddenNodes);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Constructors
+// ═══════════════════════════════════════════════════════════════════════════
 
 NeuralNetwork::NeuralNetwork()
 	: learnRate(NNLEARNRATE), numberOfInputsNodes(2), numberOfHiddenNodes(2),
 	  numberOfOutputNodes(1), hiddenLayerLen(1), weight(2), bias(2),
 	  HiddenActivate(Sigmoid), HiddenDeactivate(DSigmoid),
 	  OutputActivate(Sigmoid), OutputDeactivate(DSigmoid), useSoftmax(false) {
-	this->weight[0] =
-		DMatrix(this->numberOfHiddenNodes, this->numberOfInputsNodes);
-	this->weight[1] =
-		DMatrix(this->numberOfOutputNodes, this->numberOfHiddenNodes);
-	this->bias[0] = DMatrix(this->numberOfHiddenNodes, 1);
-	this->bias[1] = DMatrix(this->numberOfOutputNodes, 1);
-	for (size_t i = 0; i < this->hiddenLayerLen + 1; i++)
-		this->weight[i].randomize();
+	initLayers();
 }
 
-NeuralNetwork::NeuralNetwork(const size_t numberOfInputsNodes,
-							 const size_t numberOfHiddenNodes,
-							 const size_t numberOfOutputNodes)
-	: learnRate(NNLEARNRATE), numberOfInputsNodes(numberOfInputsNodes),
-	  numberOfHiddenNodes(numberOfHiddenNodes),
-	  numberOfOutputNodes(numberOfOutputNodes), hiddenLayerLen(1), weight(2),
-	  bias(2), HiddenActivate(Sigmoid), HiddenDeactivate(DSigmoid),
-	  OutputActivate(Sigmoid), OutputDeactivate(DSigmoid) {
-	this->weight[0] =
-		DMatrix(this->numberOfHiddenNodes, this->numberOfInputsNodes);
-	this->weight[1] =
-		DMatrix(this->numberOfOutputNodes, this->numberOfHiddenNodes);
-	this->bias[0] = DMatrix(this->numberOfHiddenNodes, 1);
-	this->bias[1] = DMatrix(this->numberOfOutputNodes, 1);
-	for (size_t i = 0; i < this->hiddenLayerLen + 1; i++)
-		this->weight[i].randomize();
+// BUG FIX: useSoftmax was never initialised in this constructor (UB).
+// BUG FIX: biases were never randomized in this constructor.
+NeuralNetwork::NeuralNetwork(const size_t inputs, const size_t hidden,
+							 const size_t outputs)
+	: learnRate(NNLEARNRATE), numberOfInputsNodes(inputs),
+	  numberOfHiddenNodes(hidden), numberOfOutputNodes(outputs),
+	  hiddenLayerLen(1), weight(2), bias(2), HiddenActivate(Sigmoid),
+	  HiddenDeactivate(DSigmoid), OutputActivate(Sigmoid),
+	  OutputDeactivate(DSigmoid), useSoftmax(false) {
+	initLayers();
 }
 
-NeuralNetwork::NeuralNetwork(const size_t numberOfInputsNodes,
-							 const size_t numberOfHiddenNodes,
-							 const size_t numberOfOutputNodes,
-							 const size_t hiddenLayerLength)
-	: learnRate(NNLEARNRATE), numberOfInputsNodes(numberOfInputsNodes),
-	  numberOfHiddenNodes(numberOfHiddenNodes),
-	  numberOfOutputNodes(numberOfOutputNodes),
-	  hiddenLayerLen(hiddenLayerLength), weight(hiddenLayerLength + 1),
-	  bias(hiddenLayerLength + 1), HiddenActivate(ReLU),
-	  HiddenDeactivate(DReLU), OutputActivate(Linear),
-	  OutputDeactivate(DLinear), useSoftmax(false) {
-	// Input layer -> First hidden layer
-	this->weight[0] =
-		DMatrix(this->numberOfHiddenNodes, this->numberOfInputsNodes);
-	this->weight[0].randomize(this->numberOfInputsNodes);
-	this->bias[0] = DMatrix(this->numberOfHiddenNodes, 1);
-	this->bias[0].randomize(this->numberOfInputsNodes);
-	// Hidden layers
-	for (size_t i = 1; i < this->hiddenLayerLen; i++) {
-		this->weight[i] =
-			DMatrix(this->numberOfHiddenNodes, this->numberOfHiddenNodes);
-		this->weight[i].randomize(this->numberOfHiddenNodes);
-		this->bias[i] = DMatrix(this->numberOfHiddenNodes, 1);
-		this->bias[i].randomize(this->numberOfHiddenNodes);
+NeuralNetwork::NeuralNetwork(const size_t inputs, const size_t hidden,
+							 const size_t outputs, const size_t hiddenLayers)
+	: learnRate(NNLEARNRATE), numberOfInputsNodes(inputs),
+	  numberOfHiddenNodes(hidden), numberOfOutputNodes(outputs),
+	  hiddenLayerLen(hiddenLayers), weight(hiddenLayers + 1),
+	  bias(hiddenLayers + 1), HiddenActivate(ReLU), HiddenDeactivate(DReLU),
+	  OutputActivate(Linear), OutputDeactivate(DLinear), useSoftmax(false) {
+	initLayers();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Inference
+// ═══════════════════════════════════════════════════════════════════════════
+
+DMatrix NeuralNetwork::feedForward(const DMatrix &input) const {
+	DMatrix res(input);
+	for (size_t i = 0; i <= hiddenLayerLen; ++i) {
+		res = weight[i] * res;
+		res += bias[i];
+		if (i == hiddenLayerLen) {
+			res = useSoftmax ? Softmax(res) : (res.map(OutputActivate), res);
+		} else {
+			res.map(HiddenActivate);
+		}
 	}
-	// Last hidden -> Output layer
-	this->weight[this->hiddenLayerLen] =
-		DMatrix(this->numberOfOutputNodes, this->numberOfHiddenNodes);
-	this->weight[this->hiddenLayerLen].randomize(this->numberOfHiddenNodes);
-	this->bias[this->hiddenLayerLen] = DMatrix(this->numberOfOutputNodes, 1);
-	this->bias[this->hiddenLayerLen].randomize(this->numberOfHiddenNodes);
-}
-
-NeuralNetwork::NeuralNetwork(const NeuralNetwork &other) : weight(0), bias(0) {
-	*this = other;
-}
-
-NeuralNetwork::~NeuralNetwork() {
-}
-
-NeuralNetwork &NeuralNetwork::operator=(const NeuralNetwork &other) {
-	if (this != &other) {
-		this->learnRate = other.learnRate;
-		this->numberOfInputsNodes = other.numberOfInputsNodes;
-		this->numberOfHiddenNodes = other.numberOfHiddenNodes;
-		this->numberOfOutputNodes = other.numberOfOutputNodes;
-		this->hiddenLayerLen = other.hiddenLayerLen;
-		this->weight = other.weight;
-		this->bias = other.bias;
-		this->HiddenActivate = other.HiddenActivate;
-		this->HiddenDeactivate = other.HiddenDeactivate;
-		this->OutputActivate = other.OutputActivate;
-		this->OutputDeactivate = other.OutputDeactivate;
-		this->useSoftmax = other.useSoftmax;
-	}
-	return (*this);
+	return res;
 }
 
 std::vector<float>
 NeuralNetwork::feedForward(const std::vector<float> &input) const {
-	DMatrix res(input);
-	res = this->feedForward(res);
-	return (res.toVector());
+	return feedForward(DMatrix(input)).toVector();
 }
 
-DMatrix NeuralNetwork::feedForward(const DMatrix &input) const {
-	DMatrix res(input);
-	for (size_t i = 0; i <= this->hiddenLayerLen; i++) {
-		res = this->weight[i] * res;
-		res += this->bias[i];
-		if (i == this->hiddenLayerLen) {
-			// Output layer
-			if (useSoftmax) {
-				res = Softmax(res);
-			} else {
-				res.map(this->OutputActivate);
-			}
-		} else {
-			// Hidden layers
-			res.map(this->HiddenActivate);
-		}
-	}
-	return (res);
-}
+// ═══════════════════════════════════════════════════════════════════════════
+// Training
+// ═══════════════════════════════════════════════════════════════════════════
 
 DMatrix NeuralNetwork::train(const DMatrix &inputArray,
 							 const DMatrix &desired) {
-	// Forward pass - store all layer outputs AND pre-activations
-	std::vector<DMatrix> outputs(this->hiddenLayerLen + 2);
-	std::vector<DMatrix> preActivations(this->hiddenLayerLen + 1);
-	outputs[0] = inputArray;
-	DMatrix res(inputArray);
-	for (size_t i = 0; i <= this->hiddenLayerLen; i++) {
-		res = this->weight[i] * res;
-		res += this->bias[i];
-		preActivations[i] = res; // z = W*x + b, saved before activation
-		if (i == this->hiddenLayerLen) {
-			if (useSoftmax) {
-				res = Softmax(res);
-			} else {
-				res.map(this->OutputActivate);
-			}
+	const size_t numLayers = hiddenLayerLen + 1; // total weight layers
+
+	// ── Forward pass ──────────────────────────────────────────────────────
+	// Store pre-activations z[i] and post-activations a[i+1].
+	// a[0] = raw input; a[i+1] = f(z[i]).
+	std::vector<DMatrix> a(numLayers + 1); // post-activation at each layer
+	std::vector<DMatrix> z(numLayers);	   // pre-activation at each layer
+
+	a[0] = inputArray;
+	for (size_t i = 0; i < numLayers; ++i) {
+		z[i] = weight[i] * a[i] + bias[i];
+		a[i + 1] = z[i]; // copy, then apply activation below
+		if (i == hiddenLayerLen) {
+			a[i + 1] = useSoftmax ? Softmax(z[i])
+								  : (a[i + 1].map(OutputActivate), a[i + 1]);
 		} else {
-			res.map(this->HiddenActivate);
-		}
-		outputs[i + 1] = res;
-	}
-	// Backward pass
-	DMatrix layerError = desired - outputs[this->hiddenLayerLen + 1];
-	for (long i = static_cast<long>(this->hiddenLayerLen); i >= 0; i--) {
-		DMatrix gradient;
-		if (i == static_cast<long>(this->hiddenLayerLen)) {
-			if (useSoftmax) {
-				gradient = layerError;
-				gradient *=
-					(1.0f / static_cast<float>(this->numberOfOutputNodes));
-			} else {
-				// Pre-activation z is correct input for all output derivatives
-				if (this->OutputDeactivate == DSigmoid) {
-					gradient = outputs[i + 1];
-				} else {
-					gradient = preActivations[i];
-				}
-				gradient.map(this->OutputDeactivate);
-				gradient.multiply(layerError);
-			}
-		} else {
-			// Pre-activation z is correct for ReLU, LeakyReLU, Tanh, SiLU.
-			// DSigmoid is the exception: it's defined as s*(1-s) and coded
-			// to receive the post-activation value, so use outputs[i+1].
-			if (this->HiddenDeactivate == DSigmoid) {
-				gradient = outputs[i + 1];
-			} else {
-				gradient = preActivations[i];
-			}
-			gradient.map(this->HiddenDeactivate);
-			gradient.multiply(layerError);
-		}
-		const DMatrix unscaledGradient = (i == 0) ? gradient : DMatrix();
-		// gradient.map(errorTolerance);
-		gradient *= this->learnRate;
-		gradient.map(clampGradient);
-		const DMatrix oldWeightT = this->weight[i].transpose();
-		const DMatrix prevOutput = outputs[i].transpose();
-		const DMatrix weightDelta = gradient * prevOutput;
-		this->weight[i] += weightDelta;
-		this->bias[i] += gradient;
-		if (i == 0) {
-			layerError = oldWeightT * unscaledGradient;
-		} else {
-			layerError = oldWeightT * gradient;
+			a[i + 1].map(HiddenActivate);
 		}
 	}
-	this->clampWeightsAndBiases();
-	return (layerError);
+
+	// ── Backward pass ─────────────────────────────────────────────────────
+	// All derivative functions now receive z (pre-activation) uniformly,
+	// so no more special-casing on function pointer identity.
+	//
+	// δ[L]   = (desired − a[L+1]) ⊙ f'(z[L])          output layer
+	// δ[i]   = (W[i+1]ᵀ · δ[i+1]) ⊙ f'(z[i])          hidden layers
+	//
+	// ΔW[i]  = η · δ[i] · a[i]ᵀ
+	// Δb[i]  = η · δ[i]
+
+	// Compute output delta
+	DMatrix delta = desired - a[numLayers]; // error at output
+
+	if (useSoftmax) {
+		// Softmax + cross-entropy: gradient = (output − target) / n_outputs
+		delta *= 1.0f / static_cast<float>(numberOfOutputNodes);
+	} else {
+		// BUG FIX: all derivatives now correctly receive z (pre-activation).
+		// The old branch `if (deactivate == DSigmoid) use a` is no longer
+		// needed because DSigmoid(z) now computes σ(z)·(1−σ(z)) from z.
+		DMatrix df = z[hiddenLayerLen];
+		df.map(OutputDeactivate);
+		delta.multiply(df); // element-wise: error ⊙ f'(z)
+	}
+
+	// Propagate deltas from output layer back to first hidden layer
+	// BUG FIX: the old code used the scaled+clamped gradient to propagate
+	// layerError left through hidden layers, which corrupted the signal.
+	// Now we separate the weight update (scaled δ) from the propagation
+	// (unscaled δ multiplied by Wᵀ).
+	for (long i = static_cast<long>(hiddenLayerLen); i >= 0; --i) {
+		const size_t ui = static_cast<size_t>(i);
+
+		// Weight update uses the scaled, clamped delta
+		DMatrix scaledDelta = delta;
+		scaledDelta *= learnRate;
+		scaledDelta.map(clampGradient);
+
+		const DMatrix weightDelta = scaledDelta * a[ui].transpose();
+		weight[ui] += weightDelta;
+		bias[ui] += scaledDelta;
+
+		if (i == 0) break; // no layer to the left
+
+		// Propagate error left using UNSCALED delta and OLD weights
+		// (weight[ui] is already updated above, so save Wᵀ before updating).
+		// We saved the transpose implicitly by computing it before +=.
+		// Re-derive: use the pre-update weight stored in weightDelta's
+		// source. Actually we need Wᵀ of the weight BEFORE the update.
+		// Recompute: delta_prev = Wᵀ · delta ⊙ f'(z[i-1])
+		const DMatrix wT = (weight[ui] - weightDelta).transpose();
+		DMatrix		  newDelta = wT * delta;
+
+		DMatrix df = z[ui - 1];
+		df.map(HiddenDeactivate);
+		newDelta.multiply(df);
+		delta = std::move(newDelta);
+	}
+
+	clampWeightsAndBiases();
+	return delta;
 }
 
+// Convenience overload: wraps vectors into column DMatrices.
+DMatrix NeuralNetwork::train(const std::vector<float> &input,
+							 const std::vector<float> &desired) {
+	return train(DMatrix(input), DMatrix(desired));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Weight / bias clamping
+// ═══════════════════════════════════════════════════════════════════════════
+
 void NeuralNetwork::clampWeightsAndBiases() {
-	for (size_t i = 0; i < hiddenLayerLen + 1; ++i) {
-		const size_t fan_in =
-			(i == 0) ? numberOfInputsNodes : numberOfHiddenNodes;
-		const size_t fan_out =
-			(i == hiddenLayerLen) ? numberOfOutputNodes : numberOfHiddenNodes;
-		const float weight_clamp = NeuralNetwork::CLAMP;
-		const float bias_clamp =
-			std::sqrt(static_cast<float>(fan_in + fan_out));
+	static constexpr float WCLAMP = static_cast<float>(NeuralNetwork::CLAMP);
+
+	for (size_t i = 0; i <= hiddenLayerLen; ++i) {
 		// Clamp weights
-		const size_t weight_rows = weight[i].getRowLength();
-		const size_t weight_cols = weight[i].getColLength();
-		for (size_t r = 0; r < weight_rows; ++r) {
-			for (size_t c = 0; c < weight_cols; ++c) {
-				float &val = weight[i](r, c);
-				if (std::isnan(val) || std::isinf(val)) {
-					val = 0;
-				} else if (std::abs(val) > weight_clamp) {
-					val = val < 0 ? -weight_clamp : weight_clamp;
-				}
+		for (size_t r = 0; r < weight[i].getRowLength(); ++r) {
+			for (size_t c = 0; c < weight[i].getColLength(); ++c) {
+				float &v = weight[i](r, c);
+				if (std::isnan(v) || std::isinf(v))
+					v = 0.0f;
+				else if (v > WCLAMP)
+					v = WCLAMP;
+				else if (v < -WCLAMP)
+					v = -WCLAMP;
 			}
 		}
-		const size_t bias_rows = bias[i].getRowLength();
-		const size_t bias_cols = bias[i].getColLength();
-		for (size_t r = 0; r < bias_rows; ++r) {
-			for (size_t c = 0; c < bias_cols; ++c) {
-				float &val = bias[i](r, c);
-				if (std::isnan(val) || std::isinf(val)) {
-					val = 0;
-				} else if (std::abs(val) > bias_clamp) {
-					val = val < 0 ? -bias_clamp : bias_clamp;
-				}
+		// BUG FIX: bias clamp used sqrt(fanIn+fanOut) which was far too
+		// small (e.g. ≈2.2 for a 2→2→1 net) and aggressively clipped biases
+		// throughout training. Use the same constant as weights.
+		for (size_t r = 0; r < bias[i].getRowLength(); ++r) {
+			for (size_t c = 0; c < bias[i].getColLength(); ++c) {
+				float &v = bias[i](r, c);
+				if (std::isnan(v) || std::isinf(v))
+					v = 0.0f;
+				else if (v > WCLAMP)
+					v = WCLAMP;
+				else if (v < -WCLAMP)
+					v = -WCLAMP;
 			}
 		}
 	}
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Mutation (evolutionary)
+// ═══════════════════════════════════════════════════════════════════════════
 
 NeuralNetwork NeuralNetwork::mutate(float (*func)(float)) const {
 	NeuralNetwork m(*this);
-	for (size_t i = 0; i < m.hiddenLayerLen + 1; i++) {
+	for (size_t i = 0; i <= m.hiddenLayerLen; ++i) {
 		m.weight[i].map(func);
 		m.bias[i].map(func);
 	}
-	return (m);
+	return m;
 }
 
-void NeuralNetwork::enableSoftmax(bool enable) {
-	this->useSoftmax = enable;
+// ═══════════════════════════════════════════════════════════════════════════
+// Configuration
+// ═══════════════════════════════════════════════════════════════════════════
+
+void NeuralNetwork::enableSoftmax(const bool enable) {
+	useSoftmax = enable;
 	if (enable) {
-		this->OutputActivate = Linear;
-		this->OutputDeactivate = DLinear;
+		OutputActivate = Linear;
+		OutputDeactivate = DLinear;
 	}
+}
+
+void NeuralNetwork::setHiddenLayerActivation(float (*activate)(float),
+											 float (*deactivate)(float)) {
+	if (!activate || !deactivate) return;
+	HiddenActivate = activate;
+	HiddenDeactivate = deactivate;
+}
+
+void NeuralNetwork::setOutputLayerActivation(float (*activate)(float),
+											 float (*deactivate)(float)) {
+	if (!activate || !deactivate) return;
+	OutputActivate = activate;
+	OutputDeactivate = deactivate;
+}
+
+void NeuralNetwork::setLearnRate(const float lr) {
+	learnRate = lr;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Accessors
+// ═══════════════════════════════════════════════════════════════════════════
+
+float NeuralNetwork::getLearnRate() const {
+	return learnRate;
+}
+size_t NeuralNetwork::getHiddenLayerLength() const {
+	return hiddenLayerLen;
+}
+size_t NeuralNetwork::getNumberOfInputsNodes() const {
+	return numberOfInputsNodes;
+}
+size_t NeuralNetwork::getNumberOfHiddenNodes() const {
+	return numberOfHiddenNodes;
+}
+size_t NeuralNetwork::getNumberOfOutputsNodes() const {
+	return numberOfOutputNodes;
 }
 
 DMatrix &NeuralNetwork::getBiasAt(const size_t index) {
-	if (index > this->hiddenLayerLen) {
-		return (this->bias[this->hiddenLayerLen]);
-	}
-	return (this->bias[index]);
+	return bias[index <= hiddenLayerLen ? index : hiddenLayerLen];
 }
-
 DMatrix &NeuralNetwork::getWeightAt(const size_t index) {
-	if (index > this->hiddenLayerLen) {
-		return (this->weight[this->hiddenLayerLen]);
-	}
-	return (this->weight[index]);
+	return weight[index <= hiddenLayerLen ? index : hiddenLayerLen];
 }
-
 const DMatrix &NeuralNetwork::getBiasAt(const size_t index) const {
-	if (index > this->hiddenLayerLen) {
-		return (this->bias[this->hiddenLayerLen]);
-	}
-	return (this->bias[index]);
+	return bias[index <= hiddenLayerLen ? index : hiddenLayerLen];
 }
-
 const DMatrix &NeuralNetwork::getWeightAt(const size_t index) const {
-	if (index > this->hiddenLayerLen) {
-		return (this->weight[this->hiddenLayerLen]);
+	return weight[index <= hiddenLayerLen ? index : hiddenLayerLen];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Serialization
+// ═══════════════════════════════════════════════════════════════════════════
+
+nlohmann::json NeuralNetwork::serialize(const NeuralNetwork &nn,
+										const std::string &filename) noexcept {
+	nlohmann::json j;
+	j["learnRate"] = nn.learnRate;
+	j["numberOfInputsNodes"] = nn.numberOfInputsNodes;
+	j["numberOfHiddenNodes"] = nn.numberOfHiddenNodes;
+	j["numberOfOutputNodes"] = nn.numberOfOutputNodes;
+	j["hiddenLayerLen"] = nn.hiddenLayerLen;
+	j["useSoftmax"] = nn.useSoftmax;
+
+	for (size_t i = 0; i <= nn.hiddenLayerLen; ++i) {
+		for (size_t r = 0; r < nn.weight[i].getRowLength(); ++r)
+			for (size_t c = 0; c < nn.weight[i].getColLength(); ++c)
+				j["weights"][i][r][c] = nn.weight[i](r, c);
+		for (size_t r = 0; r < nn.bias[i].getRowLength(); ++r)
+			for (size_t c = 0; c < nn.bias[i].getColLength(); ++c)
+				j["bias"][i][r][c] = nn.bias[i](r, c);
 	}
-	return (this->weight[index]);
-}
 
-void NeuralNetwork::setHiddenLayerActivation(float (*Activate)(float),
-											 float (*Deactivate)(float)) {
-	if (!Activate || !Deactivate) {
-		return;
+	if (!filename.empty()) {
+		std::ofstream out(filename);
+		if (out.is_open())
+			out << j.dump(4);
+		else
+			std::cerr << "[NeuralNetwork] Could not write: " << filename
+					  << '\n';
 	}
-	this->HiddenActivate = Activate;
-	this->HiddenDeactivate = Deactivate;
+	return j;
 }
 
-void NeuralNetwork::setOutputLayerActivation(float (*Activate)(float),
-											 float (*Deactivate)(float)) {
-	if (!Activate || !Deactivate) {
-		return;
+NeuralNetwork NeuralNetwork::deserialize(const std::string &filename) noexcept {
+	std::ifstream in(filename);
+	if (!in.is_open()) {
+		std::cerr << "[NeuralNetwork] Could not read: " << filename << '\n';
+		return NeuralNetwork();
 	}
-	this->OutputActivate = Activate;
-	this->OutputDeactivate = Deactivate;
-}
 
-void NeuralNetwork::setLearnRate(const float newLearnRate) {
-	this->learnRate = newLearnRate;
-}
+	nlohmann::json j;
+	in >> j;
 
-float NeuralNetwork::getLearnRate(void) const {
-	return (this->learnRate);
-}
+	NeuralNetwork nn(j.at("numberOfInputsNodes").get<size_t>(),
+					 j.at("numberOfHiddenNodes").get<size_t>(),
+					 j.at("numberOfOutputNodes").get<size_t>(),
+					 j.at("hiddenLayerLen").get<size_t>());
 
-size_t NeuralNetwork::getHiddenLayerLength(void) const {
-	return (this->hiddenLayerLen);
-}
+	nn.setLearnRate(j.at("learnRate").get<float>());
+	if (j.contains("useSoftmax"))
+		nn.enableSoftmax(j.at("useSoftmax").get<bool>());
 
-size_t NeuralNetwork::getNumberOfInputsNodes(void) const {
-	return (this->numberOfInputsNodes);
-}
-
-size_t NeuralNetwork::getNumberOfHiddenNodes(void) const {
-	return (this->numberOfHiddenNodes);
-}
-
-size_t NeuralNetwork::getNumberOfOutputsNodes(void) const {
-	return (this->numberOfOutputNodes);
+	for (size_t i = 0; i <= nn.hiddenLayerLen; ++i) {
+		for (size_t r = 0; r < nn.weight[i].getRowLength(); ++r)
+			for (size_t c = 0; c < nn.weight[i].getColLength(); ++c)
+				nn.weight[i](r, c) = j["weights"][i][r][c].get<float>();
+		for (size_t r = 0; r < nn.bias[i].getRowLength(); ++r)
+			for (size_t c = 0; c < nn.bias[i].getColLength(); ++c)
+				nn.bias[i](r, c) = j["bias"][i][r][c].get<float>();
+	}
+	return nn;
 }

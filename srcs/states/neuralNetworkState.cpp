@@ -66,6 +66,7 @@ static void inputHandler(Machine &machine) {
 								   machine.NN.getNumberOfOutputsNodes(),
 								   machine.NN.getHiddenLayerLength());
 		machine.NN.setLearnRate(ln);
+		machine.NN.setHiddenLayerActivation(LeakyReLU, DLeakyReLU);
 		machine.NN.setOutputLayerActivation(Sigmoid, DSigmoid);
 	}
 	if (IsKeyPressed(KEY_D)) {
@@ -185,7 +186,7 @@ void DrawNeuralNetwork(const NeuralNetwork &nn, float screenWidth,
 				float	weight = weights.getValue(i, j);
 				float	thickness = remapWeightToThickness(weight);
 				Color	lineColor =
-					  weight >= 0 ? lineColorPositive : lineColorNegative;
+					weight >= 0 ? lineColorPositive : lineColorNegative;
 				DrawLineEx(start, end, thickness, lineColor);
 			}
 		}
