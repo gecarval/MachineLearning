@@ -1,3 +1,4 @@
+#!/bin/python3
 import os
 import numpy as np
 from PIL import Image
