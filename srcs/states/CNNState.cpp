@@ -431,14 +431,74 @@ void loadTrainingData(
 	}
 }
 
+// Prediction history recorded while training. Before each sample is
+// learned, the network predicts it; every `bucketSize` samples we store the
+// share of correct guesses and the mean confidence on the right digit.
+struct TrainHistory {
+	std::vector<float> accuracy;   // 0..1 per bucket
+	std::vector<float> confidence; // 0..1 per bucket
+	long			   bucketSize = 1;
+	long			   bucketsPerEpoch = 1;
+	long			   totalBuckets = 1;
+};
+
+static void drawPredictionGraph(const TrainHistory &h, Rectangle r) {
+	DrawRectangleRec(r, WHITE);
+	// Horizontal grid: 0%, 25%, 50%, 75%, 100%
+	for (int g = 0; g <= 4; ++g) {
+		const float y = r.y + r.height * (1.0f - g / 4.0f);
+		DrawLine(static_cast<int>(r.x), static_cast<int>(y),
+				 static_cast<int>(r.x + r.width), static_cast<int>(y),
+				 LIGHTGRAY);
+		DrawText(TextFormat("%d%%", g * 25), static_cast<int>(r.x) - 40,
+				 static_cast<int>(y) - 5, 10, DARKGRAY);
+	}
+	const float stepX =
+		r.width / static_cast<float>(std::max<long>(1, h.totalBuckets - 1));
+	// Vertical markers at epoch boundaries
+	const long epochs = h.totalBuckets / std::max<long>(1, h.bucketsPerEpoch);
+	for (long e = 1; e < epochs; ++e) {
+		const float x = r.x + stepX * static_cast<float>(e * h.bucketsPerEpoch);
+		DrawLine(static_cast<int>(x), static_cast<int>(r.y),
+				 static_cast<int>(x), static_cast<int>(r.y + r.height),
+				 Fade(GRAY, 0.5f));
+		if (epochs <= 20)
+			DrawText(TextFormat("E%ld", e + 1), static_cast<int>(x) + 3,
+					 static_cast<int>(r.y) + 3, 10, GRAY);
+	}
+	auto plot = [&](const std::vector<float> &v, Color c) {
+		for (size_t i = 1; i < v.size(); ++i) {
+			const Vector2 a = {r.x + stepX * (i - 1),
+							   r.y + r.height * (1.0f - v[i - 1])};
+			const Vector2 b = {r.x + stepX * i, r.y + r.height * (1.0f - v[i])};
+			DrawLineEx(a, b, 2.0f, c);
+		}
+		if (v.size() == 1)
+			DrawCircleV({r.x, r.y + r.height * (1.0f - v[0])}, 2.0f, c);
+	};
+	plot(h.confidence, ORANGE);
+	plot(h.accuracy, BLUE);
+	DrawRectangleLinesEx(r, 1.0f, BLACK);
+
+	// Legend under the graph
+	const int ly = static_cast<int>(r.y + r.height) + 8;
+	DrawRectangle(static_cast<int>(r.x), ly + 3, 12, 4, BLUE);
+	DrawText("correct predictions", static_cast<int>(r.x) + 18, ly, 10,
+			 DARKGRAY);
+	DrawRectangle(static_cast<int>(r.x) + 150, ly + 3, 12, 4, ORANGE);
+	DrawText("confidence on the right digit", static_cast<int>(r.x) + 168, ly,
+			 10, DARKGRAY);
+}
+
 void DrawLoadingBar(int currentEpoch, int totalEpochs, int currentIndex,
-					int totalItems, double averageItemTime) {
+					int totalItems, double averageItemTime,
+					const TrainHistory &history) {
 	const float progress =
 		static_cast<float>(currentIndex) / static_cast<float>(totalItems);
 	const int barWidth = 400;
 	const int barHeight = 30;
 	const int x = (GetScreenWidth() - barWidth) / 2;
-	const int y = (GetScreenHeight() - barHeight) / 2;
+	const int y = 60;
 
 	// 1. Items left in the CURRENT epoch
 	const int	 itemsLeftInCurrentEpoch = totalItems - currentIndex;
@@ -460,16 +520,29 @@ void DrawLoadingBar(int currentEpoch, int totalEpochs, int currentIndex,
 
 	DrawText(
 		TextFormat("Training... Epoch %d/%d", currentEpoch + 1, totalEpochs), x,
-		y - 40, 20, BLACK);
-
-	DrawText(TextFormat("Estimated time left: %02d:%02d", mins, secs), x,
-			 y + 40, 20, DARKGRAY);
+		y - 35, 20, BLACK);
 
 	// Progress bar
 	DrawRectangle(x, y, barWidth, barHeight, LIGHTGRAY);
 	DrawRectangle(x, y, static_cast<int>(barWidth * progress), barHeight, BLUE);
 	DrawRectangleLinesEx(
 		{(float)x, (float)y, (float)barWidth, (float)barHeight}, 2.0f, BLACK);
+
+	DrawText(TextFormat("Estimated time left: %02d:%02d", mins, secs), x,
+			 y + barHeight + 10, 20, DARKGRAY);
+	if (!history.accuracy.empty())
+		DrawText(TextFormat("Last %ld images: %.0f%% correct, %.0f%% sure",
+							history.bucketSize,
+							history.accuracy.back() * 100.0f,
+							history.confidence.back() * 100.0f),
+				 x, y + barHeight + 35, 20, DARKGRAY);
+
+	const Rectangle graph = {
+		60.0f, static_cast<float>(y + barHeight + 75),
+		static_cast<float>(GetScreenWidth() - 100),
+		static_cast<float>(GetScreenHeight() - (y + barHeight + 75) - 80)};
+	if (graph.height > 40.0f)
+		drawPredictionGraph(history, graph);
 }
 
 void trainModel(Machine &machine, const int epoch) {
@@ -482,13 +555,41 @@ void trainModel(Machine &machine, const int epoch) {
 	std::shuffle(trainingData.begin(), trainingData.end(),
 				 std::default_random_engine(std::random_device{}()));
 	Button cancelTrainButton(GetScreenWidth() / 2.0f - 50,
-							 GetScreenHeight() / 2.0f + 80, 100, 30, "Cancel");
+							 GetScreenHeight() - 45.0f, 100, 30, "Cancel");
+	const long	 itemCount = static_cast<long>(trainingData.size());
+	TrainHistory history;
+	// ~25 points per epoch, at least one image per point
+	history.bucketSize = std::max<long>(1, itemCount / 25);
+	history.bucketsPerEpoch =
+		(itemCount + history.bucketSize - 1) / history.bucketSize;
+	history.totalBuckets = history.bucketsPerEpoch * epoch;
 	double averageItemTime = 0.0;
 	long   totalItemsProcessed = 0;
 	for (int e = 0; e < epoch; ++e) {
-		for (long i = 0; i < static_cast<long>(trainingData.size()); ++i) {
+		long  bucketCount = 0;
+		float bucketCorrect = 0.0f;
+		float bucketConfidence = 0.0f;
+		for (long i = 0; i < itemCount; ++i) {
 			double startTime = GetTime();
-			machine.CNN.train(trainingData[i].first, trainingData[i].second);
+			const std::vector<float> &target = trainingData[i].second;
+			// Predict before learning this sample, to see how the
+			// network's guesses evolve over the epochs.
+			const std::vector<float> pred =
+				machine.CNN.feedForward(trainingData[i].first);
+			const auto label = std::distance(
+				target.begin(), std::max_element(target.begin(), target.end()));
+			const auto guess = std::distance(
+				pred.begin(), std::max_element(pred.begin(), pred.end()));
+			bucketCorrect += (guess == label) ? 1.0f : 0.0f;
+			bucketConfidence += std::clamp(pred[label], 0.0f, 1.0f);
+			if (++bucketCount == history.bucketSize || i == itemCount - 1) {
+				history.accuracy.push_back(bucketCorrect / bucketCount);
+				history.confidence.push_back(bucketConfidence / bucketCount);
+				bucketCount = 0;
+				bucketCorrect = 0.0f;
+				bucketConfidence = 0.0f;
+			}
+			machine.CNN.train(trainingData[i].first, target);
 			// Cumulative Moving Average for smoother time estimation
 			double frameTime = GetTime() - startTime;
 			totalItemsProcessed++;
@@ -496,10 +597,10 @@ void trainModel(Machine &machine, const int epoch) {
 				(averageItemTime * (totalItemsProcessed - 1) + frameTime) /
 				totalItemsProcessed;
 			// draw every X items to improve performance (Optional)
-			if (i % 10 == 0) {
+			if (i % 10 == 0 || i == itemCount - 1) {
 				BeginDrawing();
-				DrawLoadingBar(e, epoch, i, trainingData.size(),
-							   averageItemTime);
+				DrawLoadingBar(e, epoch, i, itemCount, averageItemTime,
+							   history);
 
 				cancelTrainButton.update();
 				cancelTrainButton.draw();
