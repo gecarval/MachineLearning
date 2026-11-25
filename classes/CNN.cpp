@@ -623,6 +623,9 @@ NeuralNetwork ConvNeuralNetwork::classifierFromJson(const nlohmann::json &j) {
 					 j.at("numberOfOutputNodes").get<size_t>(),
 					 j.at("hiddenLayerLen").get<size_t>());
 	nn.setLearnRate(j.at("learnRate").get<float>());
+	// The CNN classifier is always trained with softmax; older saves may
+	// not carry the flag, so default to true instead of silently dropping it.
+	nn.enableSoftmax(j.value("useSoftmax", true));
 	for (size_t i = 0; i <= nn.getHiddenLayerLength(); ++i) {
 		for (size_t r = 0; r < nn.getWeightAt(i).getRowLength(); ++r)
 			for (size_t c = 0; c < nn.getWeightAt(i).getColLength(); ++c)
