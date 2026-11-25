@@ -324,8 +324,6 @@ static void drawPredictions(const std::vector<float> &predictions,
 	const int	labelSize = compact ? 16 : 18;
 	const int	percentSize = compact ? 14 : 16;
 
-	DrawText("Predictions:", position.x, position.y - 30, titleSize, BLACK);
-
 	// Find max prediction for highlighting
 	int	  maxIdx = 0;
 	float maxVal = predictions[0];
@@ -335,6 +333,10 @@ static void drawPredictions(const std::vector<float> &predictions,
 			maxIdx = i;
 		}
 	}
+
+	// Headline: the answer first, the full distribution below it.
+	DrawText(TextFormat("Prediction: %d  (%.1f%%)", maxIdx, maxVal * 100.0f),
+			 position.x, position.y - 30, titleSize, DARKBLUE);
 
 	for (int i = 0; i < 10; ++i) {
 		const float yPos = position.y + i * (BAR_HEIGHT + SPACING);
@@ -714,6 +716,12 @@ int handleCNNState(Machine &machine) {
 		configuredButtons = true;
 	}
 
+	// Re-anchor every frame so the buttons follow window resizes
+	// (they are static and were otherwise stuck at the first-frame size).
+	increaseEpochsButton.setPosition(GetScreenWidth() - 220.0f,
+									 GetScreenHeight() - 50.0f);
+	decreaseEpochsButton.setPosition(GetScreenWidth() - 110.0f,
+									 GetScreenHeight() - 50.0f);
 	increaseEpochsButton.update();
 	decreaseEpochsButton.update();
 
@@ -760,21 +768,31 @@ int handleCNNState(Machine &machine) {
 	const float	   lineSpacing = instrSize + 8;
 
 	DrawText(TextFormat("Current Label: %d", cnnState.currentLabel), instrPos.x,
-			 instrPos.y, instrSize + 2, BLACK);
-	DrawText("Keys: 0-9 (Label) | C (Clear) | T (Train+Centre) | P "
-			 "(Predict+Centre) | R (Reset) | H (Conv Gallery)",
-			 instrPos.x, instrPos.y + lineSpacing, instrSize, DARKGRAY);
-	DrawText("Mouse: Left (Draw soft) | Right (Erase) | Ctrl+Shift+S (Save to "
-			 "Database)",
-			 instrPos.x, instrPos.y + lineSpacing * 2, instrSize, DARKGRAY);
-	const std::string trainInfo = "Ctrl+S (Save AI) | Ctrl+L (Load AI) | "
-								  "Ctrl+T (Train on Database) epoch: " +
-								  std::to_string(epoch);
-	DrawText(trainInfo.c_str(), instrPos.x, instrPos.y + lineSpacing * 3,
-			 instrSize, DARKGRAY);
+			 instrPos.y, instrSize + 2, DARKGREEN);
+	// Grouped hints: "what" in a muted colour, keys in a stronger one.
+	struct Hint {
+		const char *group;
+		const char *keys;
+	};
+	static constexpr Hint HINTS[] = {
+		{"Draw   ", "LMB draw  |  RMB erase  |  C clear  |  0-9 pick label"},
+		{"Model  ", "P predict  |  T train on drawing  |  R reset  |  H gallery"},
+		{"Files  ", "Ctrl+S save AI  |  Ctrl+L load AI  |  Ctrl+Shift+S add to "
+					"dataset  |  Ctrl+T train on dataset"},
+	};
+	for (size_t i = 0; i < sizeof(HINTS) / sizeof(HINTS[0]); ++i) {
+		const float y = instrPos.y + lineSpacing * static_cast<float>(i + 1);
+		DrawText(HINTS[i].group, instrPos.x, y, instrSize, GRAY);
+		DrawText(HINTS[i].keys, instrPos.x + MeasureText("Model  ", instrSize),
+				 y, instrSize, DARKGRAY);
+	}
 
-	// Back button
+	// Back button + epoch controls (with the current value right above them)
 	backButton(machine).draw();
+	const char *epochText = TextFormat("Epochs: %d", epoch);
+	DrawText(epochText,
+			 GetScreenWidth() - 115 - MeasureText(epochText, 20) / 2,
+			 GetScreenHeight() - 80, 20, DARKGRAY);
 	increaseEpochsButton.draw();
 	decreaseEpochsButton.draw();
 

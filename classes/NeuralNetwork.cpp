@@ -291,37 +291,42 @@ DMatrix NeuralNetwork::train(const DMatrix &inputArray,
 	// layerError left through hidden layers, which corrupted the signal.
 	// Now we separate the weight update (scaled δ) from the propagation
 	// (unscaled δ multiplied by Wᵀ).
+	//
+	// The return value is the error w.r.t. the network INPUT:
+	//   inputError = W[0]ᵀ · δ[0]          (numberOfInputsNodes × 1)
+	// ConvNeuralNetwork::backwardConv() relies on this shape to backprop
+	// into the convolution kernels.
+	DMatrix inputError;
 	for (long i = static_cast<long>(hiddenLayerLen); i >= 0; --i) {
 		const size_t ui = static_cast<size_t>(i);
+
+		// Propagate with the weights used in the forward pass, so take
+		// Wᵀ BEFORE this layer is updated.
+		const DMatrix oldWeightT = weight[ui].transpose();
 
 		// Weight update uses the scaled, clamped delta
 		DMatrix scaledDelta = delta;
 		scaledDelta *= learnRate;
 		scaledDelta.map(clampGradient);
 
-		const DMatrix weightDelta = scaledDelta * a[ui].transpose();
-		weight[ui] += weightDelta;
+		weight[ui] += scaledDelta * a[ui].transpose();
 		bias[ui] += scaledDelta;
 
-		if (i == 0) break; // no layer to the left
+		DMatrix prevError = oldWeightT * delta;
+		if (i == 0) {
+			inputError = std::move(prevError);
+			break;
+		}
 
-		// Propagate error left using UNSCALED delta and OLD weights
-		// (weight[ui] is already updated above, so save Wᵀ before updating).
-		// We saved the transpose implicitly by computing it before +=.
-		// Re-derive: use the pre-update weight stored in weightDelta's
-		// source. Actually we need Wᵀ of the weight BEFORE the update.
-		// Recompute: delta_prev = Wᵀ · delta ⊙ f'(z[i-1])
-		const DMatrix wT = (weight[ui] - weightDelta).transpose();
-		DMatrix		  newDelta = wT * delta;
-
+		// δ[i-1] = (W[i]ᵀ · δ[i]) ⊙ f'(z[i-1])
 		DMatrix df = z[ui - 1];
 		df.map(HiddenDeactivate);
-		newDelta.multiply(df);
-		delta = std::move(newDelta);
+		prevError.multiply(df);
+		delta = std::move(prevError);
 	}
 
 	clampWeightsAndBiases();
-	return delta;
+	return inputError;
 }
 
 // Convenience overload: wraps vectors into column DMatrices.

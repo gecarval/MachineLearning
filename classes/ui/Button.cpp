@@ -4,27 +4,27 @@
 Button::Button(const float x, const float y, const float width,
 			   const float height, const std::string &text)
 	: bounds{x, y, width, height}, text(text), fontSize(20), textColor(WHITE),
-	  normalColor{100, 100, 100, 255}, hoverColor{130, 130, 130, 255},
-	  pressedColor{70, 70, 70, 255}, borderColor{50, 50, 50, 255},
-	  borderWidth(0.0f), roundness(0.0f), isHovered(false), isPressed(false),
+	  normalColor{52, 73, 94, 255}, hoverColor{41, 128, 185, 255},
+	  pressedColor{31, 97, 141, 255}, borderColor{50, 50, 50, 255},
+	  borderWidth(0.0f), roundness(0.3f), isHovered(false), isPressed(false),
 	  wasPressed(false), enabled(true), onClick(nullptr) {
 }
 
 Button::Button(const float x, const float y, const Vector2 &size,
 			   const std::string &text)
 	: bounds{x, y, size.x, size.y}, text(text), fontSize(20), textColor(WHITE),
-	  normalColor{100, 100, 100, 255}, hoverColor{130, 130, 130, 255},
-	  pressedColor{70, 70, 70, 255}, borderColor{50, 50, 50, 255},
-	  borderWidth(0.0f), roundness(0.0f), isHovered(false), isPressed(false),
+	  normalColor{52, 73, 94, 255}, hoverColor{41, 128, 185, 255},
+	  pressedColor{31, 97, 141, 255}, borderColor{50, 50, 50, 255},
+	  borderWidth(0.0f), roundness(0.3f), isHovered(false), isPressed(false),
 	  wasPressed(false), enabled(true), onClick(nullptr) {
 }
 
 Button::Button(const Vector2 &position, const float width, const float height,
 			   const std::string &text)
 	: bounds{position.x, position.y, width, height}, text(text), fontSize(20),
-	  textColor(WHITE), normalColor{100, 100, 100, 255},
-	  hoverColor{130, 130, 130, 255}, pressedColor{70, 70, 70, 255},
-	  borderColor{50, 50, 50, 255}, borderWidth(0.0f), roundness(0.0f),
+	  textColor(WHITE), normalColor{52, 73, 94, 255},
+	  hoverColor{41, 128, 185, 255}, pressedColor{31, 97, 141, 255},
+	  borderColor{50, 50, 50, 255}, borderWidth(0.0f), roundness(0.3f),
 	  isHovered(false), isPressed(false), wasPressed(false), enabled(true),
 	  onClick(nullptr) {
 }
@@ -32,18 +32,18 @@ Button::Button(const Vector2 &position, const float width, const float height,
 Button::Button(const Vector2 &position, const Vector2 &size,
 			   const std::string &text)
 	: bounds{position.x, position.y, size.x, size.y}, text(text), fontSize(20),
-	  textColor(WHITE), normalColor{100, 100, 100, 255},
-	  hoverColor{130, 130, 130, 255}, pressedColor{70, 70, 70, 255},
-	  borderColor{50, 50, 50, 255}, borderWidth(0.0f), roundness(0.0f),
+	  textColor(WHITE), normalColor{52, 73, 94, 255},
+	  hoverColor{41, 128, 185, 255}, pressedColor{31, 97, 141, 255},
+	  borderColor{50, 50, 50, 255}, borderWidth(0.0f), roundness(0.3f),
 	  isHovered(false), isPressed(false), wasPressed(false), enabled(true),
 	  onClick(nullptr) {
 }
 
 Button::Button(const Rectangle &bounds, const std::string &text)
 	: bounds{bounds}, text(text), fontSize(20), textColor(WHITE),
-	  normalColor{100, 100, 100, 255}, hoverColor{130, 130, 130, 255},
-	  pressedColor{70, 70, 70, 255}, borderColor{50, 50, 50, 255},
-	  borderWidth(0.0f), roundness(0.0f), isHovered(false), isPressed(false),
+	  normalColor{52, 73, 94, 255}, hoverColor{41, 128, 185, 255},
+	  pressedColor{31, 97, 141, 255}, borderColor{50, 50, 50, 255},
+	  borderWidth(0.0f), roundness(0.3f), isHovered(false), isPressed(false),
 	  wasPressed(false), enabled(true), onClick(nullptr) {
 }
 
@@ -82,10 +82,10 @@ void Button::draw() const {
 	// Draw border if enabled
 	if (this->borderWidth > 0.0f) {
 		if (this->roundness > 0.0f) {
-			/*DrawRectangleRoundedLines(this->bounds, this->roundness, 16,
-									  this->borderWidth, this->borderColor);*/
-			DrawRectangleRounded(this->bounds, this->roundness, 16,
-								 this->borderColor);
+			// Outline only — a filled rounded rect here would hide the
+			// button background and make every bordered button one colour.
+			DrawRectangleRoundedLinesEx(this->bounds, this->roundness, 16,
+										this->borderWidth, this->borderColor);
 		} else {
 			DrawRectangleLinesEx(this->bounds, this->borderWidth,
 								 this->borderColor);
