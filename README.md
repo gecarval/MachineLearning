@@ -52,8 +52,11 @@ The CNN screen can train on MNIST PNGs from a `traindata/` folder next to the bi
 
 ```bash
 cd python_db
+python3 -m venv .venv
+source .venv/bin/activate
 python3 -m pip install -r requirements.txt   # numpy, pillow, matplotlib
 python3 image.py                             # writes traindata/0 … traindata/9
+deactivate
 mv traindata ../ && cd ..
 ```
 
